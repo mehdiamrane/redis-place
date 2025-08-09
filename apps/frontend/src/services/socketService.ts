@@ -170,6 +170,10 @@ class SocketService {
     console.log(`Color mapping: ${hex} -> index ${index}`);
     return index;
   }
+
+  getCurrentUserId(): string {
+    return this.userId;
+  }
 }
 
 export const socketService = new SocketService();

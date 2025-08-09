@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import redis, { redisSubscriber } from './redis';
 import { CanvasManager } from './canvas';
+import { AnalyticsManager } from './analytics';
 import { PixelUpdateData } from './types';
 
 dotenv.config();
@@ -39,6 +40,56 @@ app.get('/api/canvas', async (req, res) => {
   }
 });
 
+app.get('/api/stats', async (req, res) => {
+  try {
+    const stats = await AnalyticsManager.getDashboardStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const leaderboard = await AnalyticsManager.getTopUsers(limit);
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Error getting leaderboard:', error);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
+});
+
+app.get('/api/activity', async (req, res) => {
+  try {
+    const count = parseInt(req.query.count as string) || 50;
+    const activity = await AnalyticsManager.getRecentActivity(count);
+    res.json(activity);
+  } catch (error) {
+    console.error('Error getting activity:', error);
+    res.status(500).json({ error: 'Failed to get activity' });
+  }
+});
+
+app.get('/api/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const [profile, rank] = await Promise.all([
+      AnalyticsManager.getUserProfile(userId),
+      AnalyticsManager.getUserRank(userId)
+    ]);
+    
+    res.json({
+      profile,
+      rank: rank.rank
+    });
+  } catch (error) {
+    console.error('Error getting user data:', error);
+    res.status(500).json({ error: 'Failed to get user data' });
+  }
+});
+
 redisSubscriber.subscribe('canvas:updates');
 redisSubscriber.on('message', (channel, message) => {
   if (channel === 'canvas:updates') {
@@ -54,8 +105,12 @@ redisSubscriber.on('message', (channel, message) => {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  socket.on('join-canvas', (data) => {
+  socket.on('join-canvas', async (data) => {
     console.log('Client joined canvas:', data.userId);
+    
+    // Track unique visitor
+    await AnalyticsManager.trackUniqueVisitor(data.userId);
+    
     socket.emit('canvas-loaded', { success: true });
   });
 
@@ -83,6 +138,18 @@ io.on('connection', (socket) => {
         userId,
         timestamp: Date.now()
       };
+
+      // Track analytics
+      await Promise.all([
+        AnalyticsManager.incrementUserScore(userId), // Leaderboard
+        AnalyticsManager.incrementUserPixelCount(userId), // User profile
+        AnalyticsManager.incrementColorUsage(color), // Color stats
+        AnalyticsManager.addActivity({ userId, x, y, color }), // Activity stream
+        AnalyticsManager.updateUserProfile(userId, { 
+          lastPixelTime: Date.now(),
+          colorUsed: color // Track color usage for favorite color calculation
+        })
+      ]);
 
       console.log('Publishing update:', updateData);
       await redis.publish('canvas:updates', JSON.stringify(updateData));

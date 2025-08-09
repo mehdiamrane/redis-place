@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import Canvas from './components/Canvas'
 import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
+import AnalyticsDashboard from './components/AnalyticsDashboard'
+import UserProfile from './components/UserProfile'
 import socketService from './services/socketService'
 import './App.css'
 
@@ -13,6 +15,7 @@ interface PlacedPixel {
 }
 
 function App() {
+  const [currentView, setCurrentView] = useState<'canvas' | 'analytics'>('canvas');
   const [hoveredPixel, setHoveredPixel] = useState({ x: -1, y: -1 });
   const [zoom, setZoom] = useState(1);
   const [placedPixels, setPlacedPixels] = useState<PlacedPixel[]>([]);
@@ -20,6 +23,23 @@ function App() {
   const [previewColor, setPreviewColor] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [cooldownActive, setCooldownActive] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+
+  // Simple routing based on URL hash
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove #
+      if (hash === 'analytics') {
+        setCurrentView('analytics');
+      } else {
+        setCurrentView('canvas');
+      }
+    };
+    
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     socketService.connect();
@@ -161,6 +181,12 @@ function App() {
     // Cursor position stays the same so user can continue moving with arrow keys
   };
 
+  // Show analytics dashboard
+  if (currentView === 'analytics') {
+    return <AnalyticsDashboard />;
+  }
+
+  // Show canvas (default)
   return (
     <div style={{ 
       position: 'relative', 
@@ -168,6 +194,45 @@ function App() {
       height: '100vh', 
       overflow: 'hidden'
     }}>
+      {/* Top Right Buttons */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000,
+        display: 'flex',
+        gap: '10px'
+      }}>
+        <button
+          onClick={() => setShowUserProfile(true)}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: '#2196F3',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          👤 My Profile
+        </button>
+        <button
+          onClick={() => window.location.hash = 'analytics'}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          📊 Analytics
+        </button>
+      </div>
+
       <Canvas
         width={1000}
         height={1000}
@@ -191,6 +256,14 @@ function App() {
         onColorPreview={handleColorPreview}
         onCooldownChange={handleCooldownChange}
       />
+      
+      {/* User Profile Modal */}
+      {showUserProfile && (
+        <UserProfile 
+          userId={socketService.getCurrentUserId()} 
+          onClose={() => setShowUserProfile(false)} 
+        />
+      )}
     </div>
   )
 }
