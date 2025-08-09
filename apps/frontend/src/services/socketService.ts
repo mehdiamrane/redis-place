@@ -28,11 +28,29 @@ class SocketService {
   private userId: string;
 
   constructor() {
-    this.userId = this.generateUserId();
+    this.userId = this.getOrCreateUserId();
+  }
+
+  private getOrCreateUserId(): string {
+    const STORAGE_KEY = 'redis-place-user-id';
+    
+    // Try to get existing user ID from localStorage
+    const existingUserId = localStorage.getItem(STORAGE_KEY);
+    
+    if (existingUserId) {
+      console.log('Using existing user ID:', existingUserId);
+      return existingUserId;
+    }
+    
+    // Generate new user ID if none exists
+    const newUserId = this.generateUserId();
+    localStorage.setItem(STORAGE_KEY, newUserId);
+    console.log('Generated new user ID:', newUserId);
+    return newUserId;
   }
 
   private generateUserId(): string {
-    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   connect(): void {
