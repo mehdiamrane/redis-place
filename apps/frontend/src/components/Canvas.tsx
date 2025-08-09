@@ -116,8 +116,11 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
       );
     }
     
-    // Highlight hovered pixel with lighter outline (only if different from selected)
-    if (hoveredPixel && (!selectedPixel || hoveredPixel.x !== selectedPixel.x || hoveredPixel.y !== selectedPixel.y)) {
+    // Note: Cursor position is now always the same as selected pixel, so no separate cursor visualization needed
+
+    // Highlight hovered pixel with lighter outline (only if different from selected pixel)
+    if (hoveredPixel && 
+        (!selectedPixel || hoveredPixel.x !== selectedPixel.x || hoveredPixel.y !== selectedPixel.y)) {
       ctx.strokeStyle = '#ff6666';
       ctx.lineWidth = 2 / zoom;
       ctx.strokeRect(

@@ -4,9 +4,10 @@ interface InfoHUDProps {
   pixelX: number;
   pixelY: number;
   zoom: number;
+  cursorPosition: { x: number; y: number } | null;
 }
 
-const InfoHUD: React.FC<InfoHUDProps> = ({ pixelX, pixelY, zoom }) => {
+const InfoHUD: React.FC<InfoHUDProps> = ({ pixelX, pixelY, zoom, cursorPosition }) => {
   return (
     <div style={{
       position: 'absolute',
@@ -21,6 +22,9 @@ const InfoHUD: React.FC<InfoHUDProps> = ({ pixelX, pixelY, zoom }) => {
       zIndex: 1000,
       pointerEvents: 'none'
     }}>
+      <div>
+        Selection: {cursorPosition ? `(${cursorPosition.x}, ${cursorPosition.y})` : 'None'}
+      </div>
       <div>
         Hovered: {pixelX >= 0 && pixelY >= 0 ? `(${pixelX}, ${pixelY})` : 'N/A'}
       </div>

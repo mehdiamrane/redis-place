@@ -4,9 +4,10 @@ interface PlacementHUDProps {
   selectedPixel: { x: number; y: number } | null;
   onPlacePixel: (color: string) => void;
   onColorPreview: (color: string | null) => void;
+  onCooldownChange: (active: boolean) => void;
 }
 
-const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview }) => {
+const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview, onCooldownChange }) => {
   const [selectedColor, setSelectedColor] = useState('#ff0000');
   const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
@@ -18,12 +19,13 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
   ];
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
     if (cooldownActive && cooldownTime > 0) {
       interval = setInterval(() => {
         setCooldownTime(prev => {
           if (prev <= 1) {
             setCooldownActive(false);
+            onCooldownChange(false);
             return 0;
           }
           return prev - 1;
@@ -31,7 +33,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [cooldownActive, cooldownTime]);
+  }, [cooldownActive, cooldownTime, onCooldownChange]);
 
   // Handle keyboard shortcuts when pixel is selected (but not during cooldown)
   useEffect(() => {
@@ -97,6 +99,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     onPlacePixel(selectedColor);
     setCooldownActive(true);
     setCooldownTime(50); // 5 seconds at 100ms intervals
+    onCooldownChange(true);
   };
 
   const handleColorSelect = (color: string) => {
@@ -105,8 +108,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     onColorPreview(color);
   };
 
-  // Show cooldown state
-  if (cooldownActive) {
+  // Show cooldown state - but still allow pixel selection for pre-selection
+  if (cooldownActive && !selectedPixel) {
     return (
       <div style={{
         position: 'fixed',
@@ -124,6 +127,9 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
       }}>
         <div style={{ color: '#ff9900', fontWeight: 'bold' }}>
           Cooldown: {(cooldownTime / 10).toFixed(1)}s
+        </div>
+        <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
+          You can still select pixels while waiting
         </div>
       </div>
     );
@@ -147,7 +153,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
         textAlign: 'center'
       }}>
         <div style={{ color: '#aaa' }}>
-          Click on a pixel to paint
+          Click pixel or use SPACE to select
         </div>
       </div>
     );
@@ -169,6 +175,11 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
       minWidth: '300px',
       textAlign: 'center'
     }}>
+      {cooldownActive && (
+        <div style={{ color: '#ff9900', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(255, 153, 0, 0.2)', borderRadius: '4px' }}>
+          Cooldown: {(cooldownTime / 10).toFixed(1)}s - Pre-selecting for next paint
+        </div>
+      )}
       <div style={{ color: '#ffff00', fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>
         Selected: ({selectedPixel.x}, {selectedPixel.y})
       </div>
@@ -204,14 +215,15 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
                   width: '28px',
                   height: '28px',
                   backgroundColor: color,
-                  cursor: 'pointer',
+                  cursor: cooldownActive ? 'not-allowed' : 'pointer',
                   border: selectedColor === color ? '3px solid white' : '2px solid #666',
                   borderRadius: '4px',
                   transition: 'border-color 0.2s',
                   position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  opacity: cooldownActive ? 0.5 : 1
                 }}
               >
                 <span style={{
@@ -243,11 +255,14 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
           transition: 'background-color 0.2s'
         }}
       >
-        Paint Pixel
+        {cooldownActive ? `Wait ${(cooldownTime / 10).toFixed(1)}s` : 'Paint Pixel'}
       </button>
 
       <div style={{ marginTop: '12px', fontSize: '11px', color: '#888' }}>
         <div>ESC: deselect • ENTER: paint • 1-9, 0, Q-Y: select color</div>
+        <div style={{ marginTop: '4px', fontSize: '10px', color: '#666' }}>
+          SPACE: select pixel • Arrow keys: move cursor
+        </div>
       </div>
     </div>
   );
