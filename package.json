@@ -3,15 +3,20 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces",
+    "dev": "concurrently -c blue,green -n back,front 'npm run dev:backend' 'npm run dev:frontend'",
+    "dev:backend": "npm run dev --workspace=@redis-place/backend",
+    "dev:frontend": "npm run dev --workspace=@redis-place/frontend",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

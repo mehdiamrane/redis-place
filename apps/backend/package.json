@@ -3,11 +3,32 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "echo 'Backend dev server not configured yet'",
-    "build": "echo 'Backend build not configured yet'",
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "test": "echo 'Backend tests not configured yet'",
     "lint": "echo 'Backend linting not configured yet'"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@redis-place/shared": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "ioredis": "^5.7.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Canvas from './components/Canvas'
 import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
+import socketService from './services/socketService'
 import './App.css'
 
 interface PlacedPixel {
@@ -21,14 +22,36 @@ function App() {
   const [cooldownActive, setCooldownActive] = useState(false);
 
   useEffect(() => {
-    const savedPixels = localStorage.getItem('placedPixels');
-    if (savedPixels) {
+    socketService.connect();
+
+    const loadInitialCanvas = async () => {
       try {
-        setPlacedPixels(JSON.parse(savedPixels));
+        const pixels = await socketService.loadCanvas();
+        setPlacedPixels(pixels);
       } catch (error) {
-        console.error('Error loading placed pixels:', error);
+        console.error('Error loading canvas:', error);
       }
-    }
+    };
+
+    loadInitialCanvas();
+
+    socketService.onPixelUpdate((data) => {
+      const newPixel: PlacedPixel = {
+        x: data.x,
+        y: data.y,
+        color: socketService.colorIndexToHex(data.color),
+        timestamp: data.timestamp
+      };
+
+      setPlacedPixels(prev => {
+        const filtered = prev.filter(pixel => !(pixel.x === data.x && pixel.y === data.y));
+        return [...filtered, newPixel];
+      });
+    });
+
+    return () => {
+      socketService.disconnect();
+    };
   }, []);
 
   const handlePixelHover = (x: number, y: number) => {
@@ -110,20 +133,29 @@ function App() {
   }, [cursorPosition, selectedPixel, cooldownActive]);
 
   const handlePlacePixel = (color: string) => {
-    if (!selectedPixel) return;
+    console.log('handlePlacePixel called with:', { color, selectedPixel });
+    if (!selectedPixel) {
+      console.log('No selected pixel, returning');
+      return;
+    }
     
-    const newPixel: PlacedPixel = {
+    // Optimistic update: Add pixel immediately for instant feedback
+    const optimisticPixel = {
       x: selectedPixel.x,
       y: selectedPixel.y,
-      color,
+      color: color,
       timestamp: Date.now()
     };
-
-    const updatedPixels = placedPixels.filter(pixel => !(pixel.x === selectedPixel.x && pixel.y === selectedPixel.y));
-    updatedPixels.push(newPixel);
-
-    setPlacedPixels(updatedPixels);
-    localStorage.setItem('placedPixels', JSON.stringify(updatedPixels));
+    
+    setPlacedPixels(prev => {
+      const filtered = prev.filter(pixel => !(pixel.x === selectedPixel.x && pixel.y === selectedPixel.y));
+      return [...filtered, optimisticPixel];
+    });
+    
+    const colorIndex = socketService.hexToColorIndex(color);
+    console.log('Color converted to index:', colorIndex);
+    socketService.placePixel(selectedPixel.x, selectedPixel.y, colorIndex);
+    
     // After painting: close interface but keep cursor position for further navigation
     setSelectedPixel(null);
     // Cursor position stays the same so user can continue moving with arrow keys

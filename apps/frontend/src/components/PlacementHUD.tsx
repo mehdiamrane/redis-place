@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { COLORS } from '@redis-place/shared';
 
 interface PlacementHUDProps {
   selectedPixel: { x: number; y: number } | null;
@@ -8,18 +9,15 @@ interface PlacementHUDProps {
 }
 
 const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview, onCooldownChange }) => {
-  const [selectedColor, setSelectedColor] = useState('#ff0000');
+  const [selectedColor, setSelectedColor] = useState('#e50000');
   const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
 
-  const colors = [
-    '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
-    '#ffffff', '#000000', '#ff8000', '#8000ff', '#008000', '#800000',
-    '#808080', '#c0c0c0', '#400080', '#008080'
-  ];
+  // Use shared color palette
+  const colors = COLORS;
 
   useEffect(() => {
-    let interval: number;
+    let interval: NodeJS.Timeout;
     if (cooldownActive && cooldownTime > 0) {
       interval = setInterval(() => {
         setCooldownTime(prev => {
@@ -229,8 +227,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
                 <span style={{
                   fontSize: '10px',
                   fontWeight: 'bold',
-                  color: color === '#ffffff' || color === '#ffff00' || color === '#00ffff' ? '#000' : '#fff',
-                  textShadow: color === '#ffffff' || color === '#ffff00' || color === '#00ffff' ? 'none' : '1px 1px 1px rgba(0,0,0,0.8)'
+                  color: '#fff',
+                  textShadow: '0px 0px 3px rgba(0,0,0,1)',
                 }}>
                   {keyLabel}
                 </span>
