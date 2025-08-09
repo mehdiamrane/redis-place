@@ -1,12 +1,12 @@
 import React from 'react';
 
-interface HUDProps {
+interface InfoHUDProps {
   pixelX: number;
   pixelY: number;
   zoom: number;
 }
 
-const HUD: React.FC<HUDProps> = ({ pixelX, pixelY, zoom }) => {
+const InfoHUD: React.FC<InfoHUDProps> = ({ pixelX, pixelY, zoom }) => {
   return (
     <div style={{
       position: 'absolute',
@@ -18,11 +18,11 @@ const HUD: React.FC<HUDProps> = ({ pixelX, pixelY, zoom }) => {
       borderRadius: '5px',
       fontFamily: 'monospace',
       fontSize: '14px',
-      pointerEvents: 'none',
-      zIndex: 1000
+      zIndex: 1000,
+      pointerEvents: 'none'
     }}>
       <div>
-        Coordinates: {pixelX >= 0 && pixelY >= 0 ? `(${pixelX}, ${pixelY})` : 'N/A'}
+        Hovered: {pixelX >= 0 && pixelY >= 0 ? `(${pixelX}, ${pixelY})` : 'N/A'}
       </div>
       <div>
         Zoom: {zoom.toFixed(1)}x
@@ -31,4 +31,4 @@ const HUD: React.FC<HUDProps> = ({ pixelX, pixelY, zoom }) => {
   );
 };
 
-export default HUD;
+export default InfoHUD;

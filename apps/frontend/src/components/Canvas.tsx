@@ -1,18 +1,30 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
+interface PlacedPixel {
+  x: number;
+  y: number;
+  color: string;
+  timestamp: number;
+}
+
 interface CanvasProps {
   width: number;
   height: number;
   onPixelHover: (x: number, y: number) => void;
   onZoomChange: (zoom: number) => void;
+  placedPixels: PlacedPixel[];
+  onPixelClick: (x: number, y: number) => void;
+  selectedPixel: { x: number; y: number } | null;
+  onDeselectPixel: () => void;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange }) => {
+const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number, y: number } | null>(null);
   
   const pixelSize = 10; // Each logical pixel is rendered as 10x10 screen pixels
@@ -61,10 +73,33 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
       ctx.stroke();
     }
 
-    // Highlight hovered pixel
-    if (hoveredPixel) {
+    // Draw placed pixels
+    placedPixels.forEach(pixel => {
+      ctx.fillStyle = pixel.color;
+      ctx.fillRect(
+        pixel.x * pixelSize, 
+        pixel.y * pixelSize, 
+        pixelSize, 
+        pixelSize
+      );
+    });
+
+    // Highlight selected pixel with red outline
+    if (selectedPixel) {
       ctx.strokeStyle = '#ff0000';
       ctx.lineWidth = 3 / zoom;
+      ctx.strokeRect(
+        selectedPixel.x * pixelSize, 
+        selectedPixel.y * pixelSize, 
+        pixelSize, 
+        pixelSize
+      );
+    }
+    
+    // Highlight hovered pixel with lighter outline (only if different from selected)
+    if (hoveredPixel && (!selectedPixel || hoveredPixel.x !== selectedPixel.x || hoveredPixel.y !== selectedPixel.y)) {
+      ctx.strokeStyle = '#ff6666';
+      ctx.lineWidth = 2 / zoom;
       ctx.strokeRect(
         hoveredPixel.x * pixelSize, 
         hoveredPixel.y * pixelSize, 
@@ -74,7 +109,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     }
 
     ctx.restore();
-  }, [width, height, zoom, pan, hoveredPixel]);
+  }, [width, height, zoom, pan, hoveredPixel, placedPixels, selectedPixel]);
 
   const getPixelCoordinates = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -118,6 +153,16 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     if (isDragging) {
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
+      
+      // Check if we actually moved
+      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        setHasMoved(true);
+        // Deselect pixel when starting to drag
+        if (!hasMoved) {
+          onDeselectPixel();
+        }
+      }
+      
       const newPan = { x: pan.x + deltaX, y: pan.y + deltaY };
       setPan(constrainPan(newPan));
       setDragStart({ x: e.clientX, y: e.clientY });
@@ -131,18 +176,33 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
         onPixelHover(-1, -1);
       }
     }
-  }, [isDragging, dragStart, pan, constrainPan, getPixelCoordinates, onPixelHover]);
+  }, [isDragging, dragStart, pan, constrainPan, getPixelCoordinates, onPixelHover, hasMoved, onDeselectPixel]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0) { // Left click
       setIsDragging(true);
+      setHasMoved(false);
       setDragStart({ x: e.clientX, y: e.clientY });
     }
   }, []);
 
-  const handleMouseUp = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
+    if (pixelCoords) {
+      onPixelClick(pixelCoords.x, pixelCoords.y);
+    }
+  }, [getPixelCoordinates, onPixelClick]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    const wasMoving = hasMoved;
     setIsDragging(false);
-  }, []);
+    setHasMoved(false);
+    
+    // Only trigger click if we weren't actually dragging (moving)
+    if (!wasMoving) {
+      handleClick(e);
+    }
+  }, [hasMoved, handleClick]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -197,6 +257,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
   useEffect(() => {
     const handleMouseUpGlobal = () => setIsDragging(false);
     
+    // Handle escape key to deselect pixel
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPixel) {
+        onDeselectPixel();
+      }
+    };
+    
     // Prevent browser zoom on Ctrl+scroll and pinch gestures
     const preventZoom = (e: WheelEvent | TouchEvent) => {
       if ((e as WheelEvent).ctrlKey || (e as TouchEvent).touches?.length > 1) {
@@ -205,15 +272,17 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     };
 
     document.addEventListener('mouseup', handleMouseUpGlobal);
+    document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('wheel', preventZoom, { passive: false });
     document.addEventListener('touchmove', preventZoom, { passive: false });
     
     return () => {
       document.removeEventListener('mouseup', handleMouseUpGlobal);
+      document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('wheel', preventZoom);
       document.removeEventListener('touchmove', preventZoom);
     };
-  }, []);
+  }, [selectedPixel, onDeselectPixel]);
 
   return (
     <canvas
