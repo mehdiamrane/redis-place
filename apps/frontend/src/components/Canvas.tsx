@@ -12,6 +12,7 @@ interface CanvasProps {
   height: number;
   onPixelHover: (x: number, y: number) => void;
   onZoomChange: (zoom: number) => void;
+  onPanChange: (pan: { x: number, y: number }) => void;
   placedPixels: PlacedPixel[];
   onPixelClick: (x: number, y: number) => void;
   selectedPixel: { x: number; y: number } | null;
@@ -19,7 +20,7 @@ interface CanvasProps {
   previewColor: string | null;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel, previewColor }) => {
+const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, onPanChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel, previewColor }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -186,8 +187,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
         }
       }
       
-      const newPan = { x: pan.x + deltaX, y: pan.y + deltaY };
-      setPan(constrainPan(newPan));
+      const newPan = constrainPan({ x: pan.x + deltaX, y: pan.y + deltaY });
+      setPan(newPan);
+      onPanChange(newPan);
       setDragStart({ x: e.clientX, y: e.clientY });
     } else {
       const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
@@ -199,7 +201,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
         onPixelHover(-1, -1);
       }
     }
-  }, [isDragging, dragStart, pan, constrainPan, getPixelCoordinates, onPixelHover, hasMoved, onDeselectPixel]);
+  }, [isDragging, dragStart, pan, constrainPan, getPixelCoordinates, onPixelHover, hasMoved, onDeselectPixel, onPanChange]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0) { // Left click
@@ -250,13 +252,15 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
         const maxPanY = canvas.height - minVisibleArea;
         const minPanY = -canvasPixelHeight + minVisibleArea;
 
-        return {
+        const newPan = {
           x: Math.max(minPanX, Math.min(maxPanX, prev.x)),
           y: Math.max(minPanY, Math.min(maxPanY, prev.y))
         };
+        onPanChange(newPan);
+        return newPan;
       });
     }
-  }, [zoom, onZoomChange, width, height, pixelSize]);
+  }, [zoom, onZoomChange, onPanChange, width, height, pixelSize]);
 
   useEffect(() => {
     const resizeCanvas = () => {

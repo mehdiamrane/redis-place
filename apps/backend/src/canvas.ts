@@ -7,6 +7,7 @@ export const CANVAS_HEIGHT = 1000;
 export const CANVAS_KEY = 'canvas:pixels';
 export const SNAPSHOT_KEY = 'canvas:snapshot';
 export const PLACED_PIXELS_KEY = 'canvas:placed';
+export const HEATMAP_ZONE_SIZE = 50; // 50x50 pixel zones = 20x20 grid
 
 export class CanvasManager {
   static pixelToIndex(x: number, y: number): number {
@@ -36,6 +37,23 @@ export class CanvasManager {
     // Track placed pixels for efficient snapshot generation
     const pixelKey = `${x}:${y}`;
     await redis.sadd(PLACED_PIXELS_KEY, pixelKey);
+    
+    // Add heatmap zone tracking
+    const zoneX = Math.floor(x / HEATMAP_ZONE_SIZE);
+    const zoneY = Math.floor(y / HEATMAP_ZONE_SIZE);
+    const now = Date.now();
+    
+    try {
+      await redis.call('TS.ADD', `heatmap:${zoneX}:${zoneY}`, now, 1);
+    } catch (error) {
+      // If time series doesn't exist, create it first
+      try {
+        await redis.call('TS.CREATE', `heatmap:${zoneX}:${zoneY}`, 'RETENTION', 604800000); // 7 days
+        await redis.call('TS.ADD', `heatmap:${zoneX}:${zoneY}`, now, 1);
+      } catch (createError) {
+        console.error('Error adding to heatmap time series:', createError);
+      }
+    }
     
     // Regenerate snapshot asynchronously (non-blocking)
     this.generateSnapshot().catch(error => 
@@ -147,5 +165,58 @@ export class CanvasManager {
 
   static hexToColorIndex(hex: string): number {
     return hexToColorIndex(hex);
+  }
+
+  static async getHeatmapData(timeRangeHours = 24, skipCache = false): Promise<{ x: number; y: number; intensity: number }[]> {
+    const cacheKey = `heatmap:cache:${timeRangeHours}h`;
+    
+    // Check cache first (unless skipCache is true)
+    if (!skipCache) {
+      try {
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+          console.log(`Heatmap cache hit for ${timeRangeHours}h`);
+          return JSON.parse(cachedData);
+        }
+      } catch (error) {
+        console.error('Error reading heatmap cache:', error);
+        // Continue with fresh calculation if cache read fails
+      }
+    }
+    
+    console.log(`Heatmap cache miss (skipCache=${skipCache}) for ${timeRangeHours}h, calculating...`);
+    const fromTime = Date.now() - (timeRangeHours * 60 * 60 * 1000);
+    
+    const zonesX = Math.ceil(CANVAS_WIDTH / HEATMAP_ZONE_SIZE);
+    const zonesY = Math.ceil(CANVAS_HEIGHT / HEATMAP_ZONE_SIZE);
+    
+    // Use pipeline for parallel execution of all time series queries
+    const pipeline = redis.pipeline();
+    const zones: { x: number; y: number }[] = [];
+    
+    for (let x = 0; x < zonesX; x++) {
+      for (let y = 0; y < zonesY; y++) {
+        pipeline.call('TS.RANGE', `heatmap:${x}:${y}`, fromTime, '+');
+        zones.push({ x, y });
+      }
+    }
+    
+    const results = await pipeline.exec();
+    const heatmapData = zones.map((zone, index) => {
+      const [err, activity] = results![index];
+      const intensity = err ? 0 : (activity as [number, string][]).reduce((sum, [_, value]) => sum + parseInt(value), 0);
+      return { ...zone, intensity };
+    });
+    
+    // Cache the result for 5 minutes (300 seconds)
+    try {
+      await redis.setex(cacheKey, 300, JSON.stringify(heatmapData));
+      console.log(`Heatmap data cached for ${timeRangeHours}h`);
+    } catch (error) {
+      console.error('Error caching heatmap data:', error);
+      // Continue without caching if cache write fails
+    }
+    
+    return heatmapData;
   }
 }

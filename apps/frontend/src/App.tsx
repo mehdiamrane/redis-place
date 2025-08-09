@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Canvas from './components/Canvas'
 import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
 import AnalyticsDashboard from './components/AnalyticsDashboard'
 import UserProfile from './components/UserProfile'
+import HeatmapOverlay from './components/HeatmapOverlay'
+import HeatmapControls from './components/HeatmapControls'
 import socketService from './services/socketService'
 import './App.css'
 
@@ -18,12 +20,17 @@ function App() {
   const [currentView, setCurrentView] = useState<'canvas' | 'analytics'>('canvas');
   const [hoveredPixel, setHoveredPixel] = useState({ x: -1, y: -1 });
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [placedPixels, setPlacedPixels] = useState<PlacedPixel[]>([]);
   const [selectedPixel, setSelectedPixel] = useState<{ x: number; y: number } | null>(null);
   const [previewColor, setPreviewColor] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [cooldownActive, setCooldownActive] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapTimeRange, setHeatmapTimeRange] = useState(24);
+  const [heatmapData, setHeatmapData] = useState<{ x: number; y: number; intensity: number }[]>([]);
+  const [maxHeatmapIntensity, setMaxHeatmapIntensity] = useState(0);
 
   // Simple routing based on URL hash
   useEffect(() => {
@@ -80,6 +87,48 @@ function App() {
 
   const handleZoomChange = (newZoom: number) => {
     setZoom(newZoom);
+  };
+
+  const handlePanChange = useCallback((newPan: { x: number; y: number }) => {
+    setPan(newPan);
+  }, []);
+
+  // Heatmap data fetching logic
+  const fetchHeatmapData = useCallback(async (skipCache = false, timeRange?: number, forceEnabled = false) => {
+    if (!forceEnabled && !showHeatmap) return;
+    
+    const hoursToUse = timeRange ?? heatmapTimeRange;
+    
+    try {
+      const cacheParam = skipCache ? '&nocache=true' : '';
+      const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/heatmap?hours=${hoursToUse}${cacheParam}`);
+      const data: { x: number; y: number; intensity: number }[] = await response.json();
+      setHeatmapData(data);
+      
+      // Calculate max intensity for normalization
+      const max = Math.max(...data.map(d => d.intensity));
+      setMaxHeatmapIntensity(max);
+    } catch (error) {
+      console.error('Error fetching heatmap data:', error);
+    }
+  }, [showHeatmap, heatmapTimeRange]);
+
+  const handleToggleHeatmap = (show: boolean) => {
+    setShowHeatmap(show);
+    if (show) {
+      // Fetch data when heatmap is enabled (force enabled since state hasn't updated yet)
+      fetchHeatmapData(false, undefined, true);
+    }
+  };
+
+  const handleHeatmapTimeRangeChange = (hours: number) => {
+    setHeatmapTimeRange(hours);
+    // Fetch data with new time range (pass the new value directly)
+    fetchHeatmapData(false, hours);
+  };
+
+  const handleHeatmapRefresh = () => {
+    fetchHeatmapData(true); // Skip cache
   };
 
   const handlePixelClick = (x: number, y: number) => {
@@ -238,11 +287,21 @@ function App() {
         height={1000}
         onPixelHover={handlePixelHover}
         onZoomChange={handleZoomChange}
+        onPanChange={handlePanChange}
         onPixelClick={handlePixelClick}
         selectedPixel={selectedPixel}
         onDeselectPixel={handleDeselectPixel}
         previewColor={previewColor}
         placedPixels={placedPixels}
+      />
+      <HeatmapOverlay
+        width={1000}
+        height={1000}
+        zoom={zoom}
+        pan={pan}
+        showHeatmap={showHeatmap}
+        heatmapData={heatmapData}
+        maxIntensity={maxHeatmapIntensity}
       />
       <InfoHUD
         pixelX={hoveredPixel.x}
@@ -255,6 +314,13 @@ function App() {
         onPlacePixel={handlePlacePixel}
         onColorPreview={handleColorPreview}
         onCooldownChange={handleCooldownChange}
+      />
+      <HeatmapControls
+        showHeatmap={showHeatmap}
+        onToggleHeatmap={handleToggleHeatmap}
+        timeRange={heatmapTimeRange}
+        onTimeRangeChange={handleHeatmapTimeRangeChange}
+        onRefreshData={handleHeatmapRefresh}
       />
       
       {/* User Profile Modal */}

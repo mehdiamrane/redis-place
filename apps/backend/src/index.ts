@@ -90,6 +90,18 @@ app.get('/api/user/:userId', async (req, res) => {
   }
 });
 
+app.get('/api/heatmap', async (req, res) => {
+  try {
+    const timeRange = parseInt(req.query.hours as string) || 24; // Last 24 hours by default
+    const skipCache = req.query.nocache === 'true'; // Skip cache if nocache=true
+    const heatmapData = await CanvasManager.getHeatmapData(timeRange, skipCache);
+    res.json(heatmapData);
+  } catch (error) {
+    console.error('Error getting heatmap data:', error);
+    res.status(500).json({ error: 'Failed to get heatmap data' });
+  }
+});
+
 redisSubscriber.subscribe('canvas:updates');
 redisSubscriber.on('message', (channel, message) => {
   if (channel === 'canvas:updates') {

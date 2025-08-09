@@ -22,6 +22,14 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 - **Color Statistics**: Most popular colors with usage counts
 - **User Profiles**: Individual user statistics including pixels placed, favorite colors, and activity times
 
+### Canvas Heatmap
+
+- **Activity Heatmap Overlay**: Visual overlay showing activity hot zones across the canvas
+- **Multiple Time Ranges**: View activity patterns for 1 hour, 6 hours, 24 hours, or 7 days
+- **Color-Coded Intensity**: Blue (cold) to red (hot) gradient showing pixel placement frequency
+- **Real-time Tracking**: Every pixel placement is tracked in 50x50 pixel zones using Redis Time Series
+- **High Performance**: Multi-layer optimization with Redis pipelines and caching - reduced from 30s to 180ms (pipelines) to 90ms (cache hits)
+
 ### Data Storage
 
 - **Persistent Storage**: All pixel data stored in Redis with efficient snapshot system
@@ -128,7 +136,28 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `MGET stats:color:0 stats:color:1 ... stats:color:15` - Get all color stats
 - **Benefits**: Atomic increments, batch retrieval for statistics
 
-### 10. **Key Existence & Management** (`EXISTS`/`DEL`)
+### 10. **Time Series** (`TS.CREATE`/`TS.ADD`/`TS.RANGE`)
+
+- **Purpose**: Activity heatmap tracking with time-based aggregation
+- **Key Pattern**: `heatmap:<zone_x>:<zone_y>`
+- **Implementation**: 
+  - **Zone Tracking**: 1000x1000 canvas divided into 50x50 pixel zones (20x20 grid)
+  - **Data Collection**: Each pixel placement increments the corresponding zone's time series
+  - **Retention**: 7-day data retention for time-based analysis
+- **Commands Used**:
+  - `TS.CREATE heatmap:0:0 RETENTION 604800000` - Create time series with 7-day retention
+  - `TS.ADD heatmap:0:0 <timestamp> 1` - Add activity point to zone
+  - `TS.RANGE heatmap:0:0 <from_time> +` - Query activity in time range
+  - `SETEX heatmap:cache:24h 300 <json_data>` - Cache results for 5 minutes
+  - `GET heatmap:cache:24h` - Retrieve cached heatmap data
+- **Performance Optimization**: 
+  - **Challenge**: 400 sequential queries took ~30 seconds
+  - **Solution**: Redis pipeline batches all queries into single round-trip
+  - **Result**: Reduced query time to ~180ms (165x performance improvement)
+  - **Cache Layer**: 5-minute Redis cache reduces repeated queries to ~90ms (additional 2x improvement)
+- **Benefits**: Time-based activity analysis, efficient zone-based aggregation, high-performance bulk queries with intelligent caching
+
+### 11. **Key Existence & Management** (`EXISTS`/`DEL`)
 
 - **Purpose**: Initialize canvas, clear test data, conditional operations
 - **Keys**: `canvas:pixels`, `canvas:snapshot`, `canvas:placed`, various analytics keys
