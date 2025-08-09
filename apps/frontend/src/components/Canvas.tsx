@@ -16,9 +16,10 @@ interface CanvasProps {
   onPixelClick: (x: number, y: number) => void;
   selectedPixel: { x: number; y: number } | null;
   onDeselectPixel: () => void;
+  previewColor: string | null;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel }) => {
+const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel, previewColor }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -73,8 +74,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
       ctx.stroke();
     }
 
-    // Draw placed pixels
+    // Draw placed pixels (skip the selected pixel if there's a preview)
     placedPixels.forEach(pixel => {
+      // Skip drawing the underlying pixel if we're showing a preview at this position
+      if (selectedPixel && previewColor && 
+          pixel.x === selectedPixel.x && pixel.y === selectedPixel.y) {
+        return;
+      }
+      
       ctx.fillStyle = pixel.color;
       ctx.fillRect(
         pixel.x * pixelSize, 
@@ -83,6 +90,19 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
         pixelSize
       );
     });
+
+    // Show color preview on selected pixel with more noticeable opacity
+    if (selectedPixel && previewColor) {
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = previewColor;
+      ctx.fillRect(
+        selectedPixel.x * pixelSize, 
+        selectedPixel.y * pixelSize, 
+        pixelSize, 
+        pixelSize
+      );
+      ctx.globalAlpha = 1.0;
+    }
 
     // Highlight selected pixel with red outline
     if (selectedPixel) {
@@ -109,7 +129,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     }
 
     ctx.restore();
-  }, [width, height, zoom, pan, hoveredPixel, placedPixels, selectedPixel]);
+  }, [width, height, zoom, pan, hoveredPixel, placedPixels, selectedPixel, previewColor]);
 
   const getPixelCoordinates = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;

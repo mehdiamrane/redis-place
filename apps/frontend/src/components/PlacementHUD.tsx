@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 interface PlacementHUDProps {
   selectedPixel: { x: number; y: number } | null;
   onPlacePixel: (color: string) => void;
+  onColorPreview: (color: string | null) => void;
 }
 
-const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel }) => {
+const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview }) => {
   const [selectedColor, setSelectedColor] = useState('#ff0000');
   const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
@@ -32,11 +33,76 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     return () => clearInterval(interval);
   }, [cooldownActive, cooldownTime]);
 
+  // Handle keyboard shortcuts when pixel is selected (but not during cooldown)
+  useEffect(() => {
+    if (!selectedPixel || cooldownActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enter to paint
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handlePlacePixel();
+        return;
+      }
+
+      // Color selection keys: 1-9, 0, Q, W, E, R, T, Y
+      let colorIndex = -1;
+      
+      // Numbers 1-9 map to colors 0-8
+      const keyNum = parseInt(e.key);
+      if (keyNum >= 1 && keyNum <= 9) {
+        colorIndex = keyNum - 1;
+      }
+      // 0 maps to color 9
+      else if (e.key === '0') {
+        colorIndex = 9;
+      }
+      // Letter keys for colors 10-15
+      else {
+        const letterKeys = ['q', 'w', 'e', 'r', 't', 'y'];
+        const letterIndex = letterKeys.indexOf(e.key.toLowerCase());
+        if (letterIndex !== -1) {
+          colorIndex = 10 + letterIndex;
+        }
+      }
+
+      if (colorIndex >= 0 && colorIndex < colors.length) {
+        setSelectedColor(colors[colorIndex]);
+        onColorPreview(colors[colorIndex]);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPixel, cooldownActive, colors, onColorPreview]);
+
+  // Set up color preview when color changes (but not during cooldown)
+  useEffect(() => {
+    if (selectedPixel && !cooldownActive) {
+      onColorPreview(selectedColor);
+    } else {
+      onColorPreview(null);
+    }
+  }, [selectedColor, selectedPixel, cooldownActive, onColorPreview]);
+
+  // Clear preview when pixel is deselected or cooldown starts
+  useEffect(() => {
+    if (!selectedPixel || cooldownActive) {
+      onColorPreview(null);
+    }
+  }, [selectedPixel, cooldownActive, onColorPreview]);
+
   const handlePlacePixel = () => {
     if (cooldownActive || !selectedPixel) return;
     onPlacePixel(selectedColor);
     setCooldownActive(true);
-    setCooldownTime(10);
+    setCooldownTime(50); // 5 seconds at 100ms intervals
+  };
+
+  const handleColorSelect = (color: string) => {
+    if (cooldownActive) return; // Don't allow color changes during cooldown
+    setSelectedColor(color);
+    onColorPreview(color);
   };
 
   // Show cooldown state
@@ -118,21 +184,47 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
           maxWidth: '280px',
           margin: '0 auto 16px auto'
         }}>
-          {colors.map(color => (
-            <div
-              key={color}
-              onClick={() => setSelectedColor(color)}
-              style={{
-                width: '28px',
-                height: '28px',
-                backgroundColor: color,
-                cursor: 'pointer',
-                border: selectedColor === color ? '3px solid white' : '2px solid #666',
-                borderRadius: '4px',
-                transition: 'border-color 0.2s'
-              }}
-            />
-          ))}
+          {colors.map((color, index) => {
+            // Generate keyboard label: 1-9, 0, Q, W, E, R, T, Y
+            let keyLabel;
+            if (index < 9) {
+              keyLabel = (index + 1).toString();
+            } else if (index === 9) {
+              keyLabel = '0';
+            } else {
+              const letterKeys = ['Q', 'W', 'E', 'R', 'T', 'Y'];
+              keyLabel = letterKeys[index - 10];
+            }
+
+            return (
+              <div
+                key={color}
+                onClick={() => handleColorSelect(color)}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  backgroundColor: color,
+                  cursor: 'pointer',
+                  border: selectedColor === color ? '3px solid white' : '2px solid #666',
+                  borderRadius: '4px',
+                  transition: 'border-color 0.2s',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  color: color === '#ffffff' || color === '#ffff00' || color === '#00ffff' ? '#000' : '#fff',
+                  textShadow: color === '#ffffff' || color === '#ffff00' || color === '#00ffff' ? 'none' : '1px 1px 1px rgba(0,0,0,0.8)'
+                }}>
+                  {keyLabel}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -154,8 +246,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
         Paint Pixel
       </button>
 
-      <div style={{ marginTop: '12px', fontSize: '12px', color: '#888' }}>
-        Press ESC or drag to deselect
+      <div style={{ marginTop: '12px', fontSize: '11px', color: '#888' }}>
+        <div>ESC: deselect • ENTER: paint • 1-9, 0, Q-Y: select color</div>
       </div>
     </div>
   );

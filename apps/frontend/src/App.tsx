@@ -16,6 +16,7 @@ function App() {
   const [zoom, setZoom] = useState(1);
   const [placedPixels, setPlacedPixels] = useState<PlacedPixel[]>([]);
   const [selectedPixel, setSelectedPixel] = useState<{ x: number; y: number } | null>(null);
+  const [previewColor, setPreviewColor] = useState<string | null>(null);
 
   useEffect(() => {
     const savedPixels = localStorage.getItem('placedPixels');
@@ -42,6 +43,11 @@ function App() {
 
   const handleDeselectPixel = () => {
     setSelectedPixel(null);
+    setPreviewColor(null);
+  };
+
+  const handleColorPreview = (color: string | null) => {
+    setPreviewColor(color);
   };
 
   const handlePlacePixel = (color: string) => {
@@ -78,6 +84,7 @@ function App() {
         onPixelClick={handlePixelClick}
         selectedPixel={selectedPixel}
         onDeselectPixel={handleDeselectPixel}
+        previewColor={previewColor}
         placedPixels={placedPixels}
       />
       <InfoHUD
@@ -88,6 +95,7 @@ function App() {
       <PlacementHUD
         selectedPixel={selectedPixel}
         onPlacePixel={handlePlacePixel}
+        onColorPreview={handleColorPreview}
       />
     </div>
   )
