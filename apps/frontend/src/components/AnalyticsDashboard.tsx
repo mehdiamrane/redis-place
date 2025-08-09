@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { colorIndexToHex } from '@redis-place/shared';
 import UserProfile from './UserProfile';
 import socketService from '../services/socketService';
+import { getBadgeTitle, getBadgeEmoji, getBadgeColor } from '../utils/badge';
 
 interface LeaderboardEntry {
   userId: string;
@@ -11,10 +12,12 @@ interface LeaderboardEntry {
 interface ActivityEntry {
   id: string;
   userId: string;
-  x: number;
-  y: number;
-  color: number;
+  type: 'pixel' | 'badge';
   timestamp: number;
+  x?: number;
+  y?: number;
+  color?: number;
+  badgeId?: string;
 }
 
 interface ColorStat {
@@ -72,6 +75,7 @@ function AnalyticsDashboard() {
     const date = new Date(timestamp);
     return date.toLocaleTimeString();
   };
+
 
   if (loading) {
     return (
@@ -266,54 +270,107 @@ function AnalyticsDashboard() {
         <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '10px' }}>
           <h2>⚡ Recent Activity</h2>
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '15px' }}>
-            Last 20 pixel placements • Live updates every 10 seconds
+            Last 20 activities (pixels & badges) • Live updates every 10 seconds
           </div>
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
             {stats.recentActivity.map((activity) => {
-              const colorHex = colorIndexToHex(activity.color);
-              return (
-                <div
-                  key={activity.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px',
-                    marginBottom: '5px',
-                    backgroundColor: '#3a3a3a',
-                    borderRadius: '5px',
-                    fontSize: '14px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        backgroundColor: colorHex,
-                        borderRadius: '2px',
-                        border: '1px solid #666'
-                      }}
-                    />
-                    <span 
-                      style={{ 
-                        cursor: 'pointer', 
-                        textDecoration: 'underline',
-                        color: '#4CAF50'
-                      }}
-                      onClick={() => handleUserClick(activity.userId)}
-                    >
-                      {formatUserId(activity.userId)}
-                    </span>
-                    <span style={{ color: '#888' }}>
-                      ({activity.x}, {activity.y})
+              if (activity.type === 'badge') {
+                // Render badge activity
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px',
+                      marginBottom: '5px',
+                      backgroundColor: '#3a3a3a',
+                      borderRadius: '5px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: getBadgeColor(activity.badgeId!),
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px'
+                        }}
+                      >
+                        {getBadgeEmoji(activity.badgeId!)}
+                      </div>
+                      <span 
+                        style={{ 
+                          cursor: 'pointer', 
+                          textDecoration: 'underline',
+                          color: '#4CAF50'
+                        }}
+                        onClick={() => handleUserClick(activity.userId)}
+                      >
+                        {formatUserId(activity.userId)}
+                      </span>
+                      <span style={{ color: '#888' }}>
+                        earned {getBadgeTitle(activity.badgeId!)}
+                      </span>
+                    </div>
+                    <span style={{ color: '#bbb', fontSize: '12px' }}>
+                      {formatTimestamp(activity.timestamp)}
                     </span>
                   </div>
-                  <span style={{ color: '#bbb', fontSize: '12px' }}>
-                    {formatTimestamp(activity.timestamp)}
-                  </span>
-                </div>
-              );
+                );
+              } else {
+                // Render pixel activity
+                const colorHex = colorIndexToHex(activity.color!);
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px',
+                      marginBottom: '5px',
+                      backgroundColor: '#3a3a3a',
+                      borderRadius: '5px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: colorHex,
+                          borderRadius: '2px',
+                          border: '1px solid #666'
+                        }}
+                      />
+                      <span 
+                        style={{ 
+                          cursor: 'pointer', 
+                          textDecoration: 'underline',
+                          color: '#4CAF50'
+                        }}
+                        onClick={() => handleUserClick(activity.userId)}
+                      >
+                        {formatUserId(activity.userId)}
+                      </span>
+                      <span style={{ color: '#888' }}>
+                        ({activity.x}, {activity.y})
+                      </span>
+                    </div>
+                    <span style={{ color: '#bbb', fontSize: '12px' }}>
+                      {formatTimestamp(activity.timestamp)}
+                    </span>
+                  </div>
+                );
+              }
             })}
           </div>
         </div>

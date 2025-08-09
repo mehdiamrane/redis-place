@@ -1,5 +1,14 @@
 import redis from './redis';
 
+interface UserProfile {
+  pixelsPlaced: number;
+  favoriteColor: number | null;
+  firstPixelTime: number | null;
+  lastPixelTime: number | null;
+  colorUsage: Record<string, number>;
+  badges: string[];
+}
+
 export class AnalyticsManager {
   // Redis Keys
   private static readonly USER_LEADERBOARD_KEY = 'leaderboard:users';
@@ -78,17 +87,31 @@ export class AnalyticsManager {
       'x', data.x.toString(),
       'y', data.y.toString(),
       'color', data.color.toString(),
-      'timestamp', (data.timestamp || Date.now()).toString()
+      'timestamp', (data.timestamp || Date.now()).toString(),
+      'type', 'pixel'
+    );
+  }
+
+  static async addBadgeActivity(userId: string, badgeId: string): Promise<void> {
+    await redis.xadd(
+      this.ACTIVITY_STREAM_KEY,
+      '*', // Auto-generate ID
+      'userId', userId,
+      'badgeId', badgeId,
+      'timestamp', Date.now().toString(),
+      'type', 'badge'
     );
   }
 
   static async getRecentActivity(count: number = 50): Promise<Array<{
     id: string;
     userId: string;
-    x: number;
-    y: number;
-    color: number;
+    type: 'pixel' | 'badge';
     timestamp: number;
+    x?: number;
+    y?: number;
+    color?: number;
+    badgeId?: string;
   }>> {
     const results = await redis.xrevrange(this.ACTIVITY_STREAM_KEY, '+', '-', 'COUNT', count);
     
@@ -98,84 +121,103 @@ export class AnalyticsManager {
         data[fields[i]] = fields[i + 1];
       }
       
-      return {
+      const activity: any = {
         id: data.id,
         userId: data.userId,
-        x: parseInt(data.x),
-        y: parseInt(data.y),
-        color: parseInt(data.color),
+        type: data.type || 'pixel', // Default to pixel for backward compatibility
         timestamp: parseInt(data.timestamp)
       };
+
+      if (activity.type === 'pixel') {
+        activity.x = parseInt(data.x);
+        activity.y = parseInt(data.y);
+        activity.color = parseInt(data.color);
+      } else if (activity.type === 'badge') {
+        activity.badgeId = data.badgeId;
+      }
+
+      return activity;
     });
   }
 
-  // User Profiles (Redis Hashes)
+  // User Profiles (JSON-based)
+
   static async updateUserProfile(userId: string, data: {
     pixelsPlaced?: number;
     colorUsed?: number;
     firstPixelTime?: number;
     lastPixelTime?: number;
+    badgesToAdd?: string[];
   }): Promise<void> {
     const key = `${this.USER_PROFILE_KEY_PREFIX}${userId}`;
-    const updates: string[] = [];
     
-    // Check if this is the user's first pixel
-    const existingProfile = await redis.hmget(key, 'firstPixelTime');
-    const isFirstPixel = !existingProfile[0];
-    
+    // Get existing profile or create new one
+    let profile: UserProfile;
+    try {
+      const existingProfile = await redis.call('JSON.GET', key, '$') as string | null;
+      if (existingProfile && existingProfile !== 'null') {
+        profile = JSON.parse(existingProfile)[0];
+      } else {
+        profile = {
+          pixelsPlaced: 0,
+          favoriteColor: null,
+          firstPixelTime: null,
+          lastPixelTime: null,
+          colorUsage: {},
+          badges: []
+        };
+      }
+    } catch (error) {
+      // Profile doesn't exist, create new one
+      profile = {
+        pixelsPlaced: 0,
+        favoriteColor: null,
+        firstPixelTime: null,
+        lastPixelTime: null,
+        colorUsage: {},
+        badges: []
+      };
+    }
+
+    // Update profile data
     if (data.pixelsPlaced !== undefined) {
-      updates.push('pixelsPlaced', data.pixelsPlaced.toString());
-    }
-    if (data.firstPixelTime !== undefined || isFirstPixel) {
-      const firstTime = data.firstPixelTime || data.lastPixelTime || Date.now();
-      updates.push('firstPixelTime', firstTime.toString());
-    }
-    if (data.lastPixelTime !== undefined) {
-      updates.push('lastPixelTime', data.lastPixelTime.toString());
-    }
-    
-    if (updates.length > 0) {
-      await redis.hmset(key, ...updates);
+      profile.pixelsPlaced += data.pixelsPlaced;
     }
 
-    // Handle color usage tracking separately
     if (data.colorUsed !== undefined) {
-      await this.trackUserColorUsage(userId, data.colorUsed);
-    }
-  }
-
-  // Track individual user color usage and update favorite color
-  static async trackUserColorUsage(userId: string, color: number): Promise<void> {
-    const profileKey = `${this.USER_PROFILE_KEY_PREFIX}${userId}`;
-    const colorField = `color_${color}`;
-    
-    // Increment this color's usage count in the main profile hash
-    const newCount = await redis.hincrby(profileKey, colorField, 1);
-    
-    // Get all color fields from the profile to find the most used color
-    const profileData = await redis.hgetall(profileKey);
-    let favoriteColor = color;
-    let maxCount = newCount;
-    
-    // Look through all color_* fields to find the most used one
-    for (const [field, value] of Object.entries(profileData)) {
-      if (field.startsWith('color_')) {
-        const colorIndex = parseInt(field.replace('color_', ''));
-        const count = parseInt(value);
+      const colorKey = data.colorUsed.toString();
+      profile.colorUsage[colorKey] = (profile.colorUsage[colorKey] || 0) + 1;
+      
+      // Recalculate favorite color
+      let maxCount = 0;
+      let favoriteColor = null;
+      for (const [color, count] of Object.entries(profile.colorUsage)) {
         if (count > maxCount) {
           maxCount = count;
-          favoriteColor = colorIndex;
+          favoriteColor = parseInt(color);
+        }
+      }
+      profile.favoriteColor = favoriteColor;
+    }
+
+    if (data.firstPixelTime !== undefined && profile.firstPixelTime === null) {
+      profile.firstPixelTime = data.firstPixelTime;
+    }
+
+    if (data.lastPixelTime !== undefined) {
+      profile.lastPixelTime = data.lastPixelTime;
+    }
+
+    if (data.badgesToAdd && data.badgesToAdd.length > 0) {
+      for (const badge of data.badgesToAdd) {
+        if (!profile.badges.includes(badge)) {
+          profile.badges.push(badge);
         }
       }
     }
-    
-    // Update favorite color in the same profile hash
-    await redis.hset(profileKey, 'favoriteColor', favoriteColor.toString());
-  }
 
-  static async incrementUserPixelCount(userId: string): Promise<number> {
-    const key = `${this.USER_PROFILE_KEY_PREFIX}${userId}`;
-    return await redis.hincrby(key, 'pixelsPlaced', 1);
+    // Save updated profile atomically
+    await redis.call('JSON.SET', key, '$', JSON.stringify(profile));
   }
 
   static async getUserProfile(userId: string): Promise<{
@@ -184,36 +226,140 @@ export class AnalyticsManager {
     firstPixelTime: number | null;
     lastPixelTime: number | null;
     colorUsage: Array<{color: number, count: number}>;
+    badges: string[];
   } | null> {
     const key = `${this.USER_PROFILE_KEY_PREFIX}${userId}`;
-    const profileData = await redis.hgetall(key);
     
-    if (!profileData || Object.keys(profileData).length === 0) {
+    try {
+      const profileData = await redis.call('JSON.GET', key, '$') as string | null;
+      if (!profileData || profileData === 'null') {
+        return null;
+      }
+
+      const profileArray = JSON.parse(profileData);
+      // Handle double array wrapping from consolidation + JSON.GET path $
+      let profile: UserProfile;
+      if (Array.isArray(profileArray) && Array.isArray(profileArray[0])) {
+        profile = profileArray[0][0]; // [[{profile}]] -> {profile}
+      } else if (Array.isArray(profileArray)) {
+        profile = profileArray[0]; // [{profile}] -> {profile}
+      } else {
+        profile = profileArray; // {profile} -> {profile}
+      }
+      
+      // Convert colorUsage object to array format
+      const colorUsage: Array<{color: number, count: number}> = [];
+      if (profile.colorUsage && typeof profile.colorUsage === 'object') {
+        for (const [color, count] of Object.entries(profile.colorUsage)) {
+          if (count > 0) {
+            colorUsage.push({ color: parseInt(color), count });
+          }
+        }
+      }
+      
+      // Sort by usage count (most used first)
+      colorUsage.sort((a, b) => b.count - a.count);
+
+      return {
+        pixelsPlaced: profile.pixelsPlaced || 0,
+        favoriteColor: profile.favoriteColor || null,
+        firstPixelTime: profile.firstPixelTime || null,
+        lastPixelTime: profile.lastPixelTime || null,
+        colorUsage,
+        badges: profile.badges || []
+      };
+    } catch (error) {
+      console.error('Error getting JSON profile:', error);
       return null;
     }
+  }
+
+  static async incrementUserPixelCount(userId: string): Promise<number> {
+    const key = `${this.USER_PROFILE_KEY_PREFIX}${userId}`;
     
-    // Extract color usage data
-    const colorUsage: Array<{color: number, count: number}> = [];
-    for (const [field, value] of Object.entries(profileData)) {
-      if (field.startsWith('color_')) {
-        const colorIndex = parseInt(field.replace('color_', ''));
-        const count = parseInt(value);
-        if (count > 0) {
-          colorUsage.push({ color: colorIndex, count });
-        }
+    try {
+      // Try to increment existing pixelsPlaced field
+      const result = await redis.call('JSON.NUMINCRBY', key, '$.pixelsPlaced', 1) as number[];
+      return result[0];
+    } catch (error) {
+      // Profile doesn't exist, create it with pixelsPlaced = 1
+      await this.updateUserProfile(userId, { pixelsPlaced: 1 });
+      return 1;
+    }
+  }
+
+  static async trackUserColorUsage(userId: string, color: number): Promise<void> {
+    const now = Date.now();
+    await this.updateUserProfile(userId, {
+      colorUsed: color,
+      lastPixelTime: now
+    });
+  }
+
+  // Badge Management
+  static async addUserBadge(userId: string, badge: string): Promise<void> {
+    await this.updateUserProfile(userId, { badgesToAdd: [badge] });
+  }
+
+  static async addUserBadges(userId: string, badges: string[]): Promise<void> {
+    await this.updateUserProfile(userId, { badgesToAdd: badges });
+  }
+
+  static async getUserBadges(userId: string): Promise<string[]> {
+    const profile = await this.getUserProfile(userId);
+    return profile?.badges || [];
+  }
+
+  // Badge Achievement Logic
+  static async checkAndAwardBadges(userId: string, pixelCount: number, colorUsage: Record<string, number>): Promise<void> {
+    const currentBadges = await this.getUserBadges(userId);
+    const badges: string[] = [];
+    
+    // First pixel badge
+    if (pixelCount >= 1 && !currentBadges.includes('first_pixel')) {
+      badges.push('first_pixel');
+    }
+    
+    // Milestone badges
+    if (pixelCount >= 10 && !currentBadges.includes('pixel_explorer')) {
+      badges.push('pixel_explorer'); // 10 pixels
+    }
+    if (pixelCount >= 50 && !currentBadges.includes('pixel_artist')) {
+      badges.push('pixel_artist'); // 50 pixels
+    }
+    if (pixelCount >= 100 && !currentBadges.includes('pixel_master')) {
+      badges.push('pixel_master'); // 100 pixels
+    }
+    if (pixelCount >= 500 && !currentBadges.includes('canvas_legend')) {
+      badges.push('canvas_legend'); // 500 pixels
+    }
+    
+    // Color variety badges
+    const colorsUsed = Object.keys(colorUsage).length;
+    if (colorsUsed >= 5 && !currentBadges.includes('color_explorer')) {
+      badges.push('color_explorer'); // Used 5+ colors
+    }
+    if (colorsUsed >= 10 && !currentBadges.includes('rainbow_master')) {
+      badges.push('rainbow_master'); // Used 10+ colors
+    }
+    
+    // Color dedication badges (single color focus)
+    if (Object.keys(colorUsage).length > 0) {
+      const maxColorUsage = Math.max(...Object.values(colorUsage));
+      if (maxColorUsage >= 25 && !currentBadges.includes('color_dedicated')) {
+        badges.push('color_dedicated'); // 25+ pixels of same color
       }
     }
     
-    // Sort by usage count (most used first)
-    colorUsage.sort((a, b) => b.count - a.count);
-    
-    return {
-      pixelsPlaced: parseInt(profileData.pixelsPlaced || '0'),
-      favoriteColor: profileData.favoriteColor ? parseInt(profileData.favoriteColor) : null,
-      firstPixelTime: profileData.firstPixelTime ? parseInt(profileData.firstPixelTime) : null,
-      lastPixelTime: profileData.lastPixelTime ? parseInt(profileData.lastPixelTime) : null,
-      colorUsage
-    };
+    if (badges.length > 0) {
+      await this.addUserBadges(userId, badges);
+      console.log(`Awarded badges to ${userId}:`, badges);
+      
+      // Add badge achievements to activity stream
+      for (const badge of badges) {
+        await this.addBadgeActivity(userId, badge);
+      }
+    }
   }
 
   // Color Statistics
@@ -248,7 +394,16 @@ export class AnalyticsManager {
     topUsers: Array<{userId: string, score: number}>;
     dailyVisitors: number;
     hourlyVisitors: number;
-    recentActivity: Array<{id: string, userId: string, x: number, y: number, color: number, timestamp: number}>;
+    recentActivity: Array<{
+      id: string;
+      userId: string;
+      type: 'pixel' | 'badge';
+      timestamp: number;
+      x?: number;
+      y?: number;
+      color?: number;
+      badgeId?: string;
+    }>;
     colorStats: Array<{color: number, count: number}>;
     totalPixelsPlaced: number;
   }> {

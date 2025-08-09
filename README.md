@@ -264,6 +264,42 @@ const redisSubscriber = new Redis({
 - **Streaming Data**: Redis Streams provide append-only activity logs with automatic ordering
 - **Batch Retrieval**: Color statistics fetched efficiently with `MGET`
 
+### User Profile: Migrating from Hash to JSON
+
+**Migration Rationale**: The user profile system is being migrated from Redis Hash to Redis JSON for improved performance and functionality.
+
+**Current Hash Limitations:**
+- **Inefficient Favorite Color Calculation**: Currently requires 4 operations per pixel placement:
+  1. `HINCRBY user:profile:<id> color_<N> 1` - Increment color usage
+  2. `HGETALL user:profile:<id>` - Retrieve entire profile to find max color
+  3. Iterate through all `color_*` fields to find highest count
+  4. `HSET user:profile:<id> favoriteColor <color>` - Update favorite color
+- **Limited Data Structure Support**: Hash fields cannot store arrays (needed for badges)
+- **Complex Field Parsing**: Converting `color_N` fields back to structured data
+- **Poor Scalability**: More dynamic fields lead to increased parsing overhead
+
+**JSON Benefits:**
+- **Reduced Operations**: Only 3 operations needed:
+  1. `JSON.GET user:profile:<id>` - Retrieve profile object
+  2. Modify object in application memory (increment color, recalculate favorite, add badges)
+  3. `JSON.SET user:profile:<id> $ <updated_object>` - Atomic update
+- **Structured Data Support**: Native support for arrays and nested objects
+  ```json
+  {
+    "pixelsPlaced": 150,
+    "favoriteColor": 3,
+    "colorUsage": {"0": 5, "3": 45, "7": 12},
+    "badges": ["first_pixel", "color_master", "streak_7days"],
+    "firstPixelTime": 1628097234567,
+    "lastPixelTime": 1628183634567
+  }
+  ```
+- **Atomic Updates**: Single JSON.SET operation ensures data consistency
+- **Cleaner Code Logic**: Direct object manipulation vs field name parsing
+- **Better Performance**: Single JSON operation vs multiple hash operations
+- **Future-Proof**: Easy expansion for more data types
+
+
 ## 📈 API Endpoints
 
 ### Canvas

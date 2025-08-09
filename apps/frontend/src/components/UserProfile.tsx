@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { colorIndexToHex } from '@redis-place/shared';
+import { getBadgeTitle, getBadgeEmoji, getBadgeColor } from '../utils/badge';
 
 interface UserProfileData {
   profile: {
@@ -8,6 +9,7 @@ interface UserProfileData {
     firstPixelTime: number | null;
     lastPixelTime: number | null;
     colorUsage: Array<{color: number, count: number}>;
+    badges: string[];
   } | null;
   rank: number | null;
 }
@@ -62,6 +64,7 @@ function UserProfile({ userId, onClose }: UserProfileProps) {
     if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     return 'Recently';
   };
+
 
   if (loading) {
     return (
@@ -297,6 +300,81 @@ function UserProfile({ userId, onClose }: UserProfileProps) {
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {profile.badges && profile.badges.length > 0 && (
+            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '14px', color: '#888', marginBottom: '10px' }}>
+                Badges ({profile.badges.length})
+              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                gap: '8px',
+                maxHeight: '150px', 
+                overflowY: 'auto' 
+              }}>
+                {profile.badges.map((badgeId) => (
+                  <div
+                    key={badgeId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px',
+                      backgroundColor: '#2a2a2a',
+                      borderRadius: '6px',
+                      border: `2px solid ${getBadgeColor(badgeId)}`,
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: getBadgeColor(badgeId),
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px'
+                    }}>
+                      {getBadgeEmoji(badgeId)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        fontWeight: 'bold',
+                        color: getBadgeColor(badgeId),
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {getBadgeTitle(badgeId)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ 
+                marginTop: '10px',
+                textAlign: 'center'
+              }}>
+                <button
+                  onClick={() => window.location.hash = 'badges'}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#9C27B0',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  View All Badges
+                </button>
               </div>
             </div>
           )}

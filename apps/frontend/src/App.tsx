@@ -3,6 +3,7 @@ import Canvas from './components/Canvas'
 import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
 import AnalyticsDashboard from './components/AnalyticsDashboard'
+import BadgesPage from './components/BadgesPage'
 import UserProfile from './components/UserProfile'
 import HeatmapOverlay from './components/HeatmapOverlay'
 import HeatmapControls from './components/HeatmapControls'
@@ -17,7 +18,7 @@ interface PlacedPixel {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<'canvas' | 'analytics'>('canvas');
+  const [currentView, setCurrentView] = useState<'canvas' | 'analytics' | 'badges'>('canvas');
   const [hoveredPixel, setHoveredPixel] = useState({ x: -1, y: -1 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -38,6 +39,8 @@ function App() {
       const hash = window.location.hash.slice(1); // Remove #
       if (hash === 'analytics') {
         setCurrentView('analytics');
+      } else if (hash === 'badges') {
+        setCurrentView('badges');
       } else {
         setCurrentView('canvas');
       }
@@ -235,6 +238,11 @@ function App() {
     return <AnalyticsDashboard />;
   }
 
+  // Show badges page
+  if (currentView === 'badges') {
+    return <BadgesPage />;
+  }
+
   // Show canvas (default)
   return (
     <div style={{ 
@@ -265,6 +273,20 @@ function App() {
           }}
         >
           👤 My Profile
+        </button>
+        <button
+          onClick={() => window.location.hash = 'badges'}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: '#9C27B0',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          🏆 Badges
         </button>
         <button
           onClick={() => window.location.hash = 'analytics'}

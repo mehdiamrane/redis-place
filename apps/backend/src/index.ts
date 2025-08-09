@@ -75,10 +75,10 @@ app.get('/api/activity', async (req, res) => {
 app.get('/api/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const [profile, rank] = await Promise.all([
-      AnalyticsManager.getUserProfile(userId),
-      AnalyticsManager.getUserRank(userId)
-    ]);
+    
+    const profile = await AnalyticsManager.getUserProfile(userId);
+    
+    const rank = await AnalyticsManager.getUserRank(userId);
     
     res.json({
       profile,
@@ -99,6 +99,23 @@ app.get('/api/heatmap', async (req, res) => {
   } catch (error) {
     console.error('Error getting heatmap data:', error);
     res.status(500).json({ error: 'Failed to get heatmap data' });
+  }
+});
+
+// Badges endpoint
+app.get('/api/badges', async (req, res) => {
+  try {
+    const badgesData = await redis.call('JSON.GET', 'badges', '$') as string | null;
+    if (badgesData && badgesData !== 'null') {
+      const badgesArray = JSON.parse(badgesData);
+      const badges = Array.isArray(badgesArray) ? badgesArray[0] : badgesArray;
+      res.json(badges);
+    } else {
+      res.json({ badges: [], totalCount: 0, lastUpdated: null });
+    }
+  } catch (error) {
+    console.error('Error getting badges:', error);
+    res.status(500).json({ error: 'Failed to get badges' });
   }
 });
 
@@ -152,14 +169,33 @@ io.on('connection', (socket) => {
       };
 
       // Track analytics
+      const now = Date.now();
       await Promise.all([
         AnalyticsManager.incrementUserScore(userId), // Leaderboard
-        AnalyticsManager.incrementUserPixelCount(userId), // User profile
         AnalyticsManager.incrementColorUsage(color), // Color stats
         AnalyticsManager.addActivity({ userId, x, y, color }), // Activity stream
-        AnalyticsManager.updateUserProfile(userId, { 
-          lastPixelTime: Date.now(),
-          colorUsed: color // Track color usage for favorite color calculation
+        AnalyticsManager.updateUserProfile(userId, {
+          pixelsPlaced: 1,
+          colorUsed: color,
+          lastPixelTime: now,
+          firstPixelTime: now // Will only set if it's null
+        }).then(async () => {
+          // Check for badge achievements after profile update
+          try {
+            const key = `user:profile:${userId}`;
+            const profileData = await redis.call('JSON.GET', key, '$') as string | null;
+            if (profileData && profileData !== 'null') {
+              const profileArray = JSON.parse(profileData);
+              const profile = Array.isArray(profileArray) ? profileArray[0] : profileArray;
+              await AnalyticsManager.checkAndAwardBadges(
+                userId, 
+                profile.pixelsPlaced, 
+                profile.colorUsage
+              );
+            }
+          } catch (error) {
+            console.error('Error checking badges:', error);
+          }
         })
       ]);
 
