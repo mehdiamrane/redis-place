@@ -185,6 +185,11 @@ export class AnalyticsManager {
     }
 
     if (data.colorUsed !== undefined) {
+      // Ensure colorUsage is initialized as an object
+      if (!profile.colorUsage || typeof profile.colorUsage !== 'object') {
+        profile.colorUsage = {};
+      }
+      
       const colorKey = data.colorUsed.toString();
       profile.colorUsage[colorKey] = (profile.colorUsage[colorKey] || 0) + 1;
       
