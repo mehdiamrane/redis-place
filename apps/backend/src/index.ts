@@ -7,6 +7,7 @@ import redis, { redisSubscriber } from './redis';
 import { CanvasManager } from './canvas';
 import { AnalyticsManager } from './analytics';
 import { PixelUpdateData } from './types';
+import { AuthManager, authenticateSession, optionalAuth, AuthenticatedRequest } from './auth';
 
 dotenv.config();
 
@@ -28,6 +29,70 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: Date.now() });
+});
+
+// Authentication endpoints
+app.post('/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Username and password must be strings' });
+  }
+  
+  if (username.length < 3 || username.length > 20) {
+    return res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+  }
+  
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  
+  // Only allow alphanumeric usernames with underscores
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
+  }
+  
+  const result = await AuthManager.registerUser(username, password);
+  
+  if (result.success) {
+    res.json({ sessionToken: result.sessionToken, username });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+});
+
+app.post('/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  
+  const result = await AuthManager.loginUser(username, password);
+  
+  if (result.success) {
+    res.json({ sessionToken: result.sessionToken, username });
+  } else {
+    res.status(401).json({ error: result.error });
+  }
+});
+
+app.post('/auth/logout', authenticateSession, async (req: AuthenticatedRequest, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const sessionToken = authHeader.replace('Bearer ', '');
+    await AuthManager.revokeSession(sessionToken);
+  }
+  
+  res.json({ message: 'Logged out successfully' });
+});
+
+app.get('/auth/verify', authenticateSession, (req: AuthenticatedRequest, res) => {
+  res.json({ username: req.user?.username, authenticated: true });
 });
 
 app.get('/api/canvas', async (req, res) => {
@@ -135,10 +200,25 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   socket.on('join-canvas', async (data) => {
-    console.log('Client joined canvas:', data.userId);
+    console.log('Client joined canvas');
     
-    // Track unique visitor
-    await AnalyticsManager.trackUniqueVisitor(data.userId);
+    // Track both authenticated and anonymous users
+    if (data?.sessionToken) {
+      // Try to track authenticated user
+      const authResult = await AuthManager.validateSession(data.sessionToken);
+      if (authResult.valid && authResult.username) {
+        console.log('Tracking authenticated visitor:', authResult.username);
+        await AnalyticsManager.trackUniqueVisitor(`user:${authResult.username}`);
+      } else {
+        // Invalid session, track as anonymous
+        console.log('Tracking anonymous visitor (invalid session):', socket.id);
+        await AnalyticsManager.trackUniqueVisitor(`anonymous_${socket.id}`);
+      }
+    } else {
+      // No session token, track as anonymous user
+      console.log('Tracking anonymous visitor:', socket.id);
+      await AnalyticsManager.trackUniqueVisitor(`anonymous_${socket.id}`);
+    }
     
     socket.emit('canvas-loaded', { success: true });
   });
@@ -146,9 +226,9 @@ io.on('connection', (socket) => {
   socket.on('place-pixel', async (data) => {
     console.log('Received place-pixel event:', data);
     try {
-      const { x, y, color, userId } = data;
+      const { x, y, color, sessionToken } = data;
       
-      console.log('Parsed pixel data:', { x, y, color, userId, types: { x: typeof x, y: typeof y, color: typeof color } });
+      console.log('Parsed pixel data:', { x, y, color, types: { x: typeof x, y: typeof y, color: typeof color } });
       
       if (typeof x !== 'number' || typeof y !== 'number' || typeof color !== 'number') {
         console.log('Invalid pixel data types');
@@ -156,6 +236,24 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Require authentication for pixel placement
+      if (!sessionToken) {
+        console.log('No session token provided');
+        socket.emit('auth-required', { message: 'Authentication required to place pixels' });
+        return;
+      }
+
+      // Validate session
+      const authResult = await AuthManager.validateSession(sessionToken);
+      if (!authResult.valid || !authResult.username) {
+        console.log('Invalid session token');
+        socket.emit('auth-required', { message: 'Invalid or expired session. Please log in again.' });
+        return;
+      }
+
+      // Use authenticated username instead of client-provided userId
+      const authenticatedUserId = `user:${authResult.username}`;
+      
       console.log('Setting pixel in Redis...');
       await CanvasManager.setPixel(x, y, color);
       console.log('Pixel set successfully');
@@ -164,17 +262,17 @@ io.on('connection', (socket) => {
         x,
         y,
         color,
-        userId,
+        userId: authenticatedUserId,
         timestamp: Date.now()
       };
 
-      // Track analytics
+      // Track analytics using authenticated user ID
       const now = Date.now();
       await Promise.all([
-        AnalyticsManager.incrementUserScore(userId), // Leaderboard
+        AnalyticsManager.incrementUserScore(authenticatedUserId), // Leaderboard
         AnalyticsManager.incrementColorUsage(color), // Color stats
-        AnalyticsManager.addActivity({ userId, x, y, color }), // Activity stream
-        AnalyticsManager.updateUserProfile(userId, {
+        AnalyticsManager.addActivity({ userId: authenticatedUserId, x, y, color }), // Activity stream
+        AnalyticsManager.updateUserProfile(authenticatedUserId, {
           pixelsPlaced: 1,
           colorUsed: color,
           lastPixelTime: now,
@@ -182,13 +280,13 @@ io.on('connection', (socket) => {
         }).then(async () => {
           // Check for badge achievements after profile update
           try {
-            const key = `user:profile:${userId}`;
+            const key = `user:profile:${authenticatedUserId}`;
             const profileData = await redis.call('JSON.GET', key, '$') as string | null;
             if (profileData && profileData !== 'null') {
               const profileArray = JSON.parse(profileData);
               const profile = Array.isArray(profileArray) ? profileArray[0] : profileArray;
               await AnalyticsManager.checkAndAwardBadges(
-                userId, 
+                authenticatedUserId, 
                 profile.pixelsPlaced, 
                 profile.colorUsage
               );

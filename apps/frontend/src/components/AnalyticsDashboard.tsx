@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { colorIndexToHex } from '@redis-place/shared';
 import UserProfile from './UserProfile';
-import socketService from '../services/socketService';
+import AuthService from '../services/authService';
 import { getBadgeTitle, getBadgeEmoji, getBadgeColor } from '../utils/badge';
 
 interface LeaderboardEntry {
@@ -131,7 +131,12 @@ function AnalyticsDashboard() {
             ← Back to Canvas
           </button>
           <button
-            onClick={() => handleUserClick(socketService.getCurrentUserId())}
+            onClick={() => {
+              const username = AuthService.getUsername();
+              if (username) {
+                handleUserClick(`user:${username}`);
+              }
+            }}
             style={{
               padding: '10px 20px',
               backgroundColor: '#2196F3',

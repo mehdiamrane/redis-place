@@ -7,7 +7,9 @@ import BadgesPage from './components/BadgesPage'
 import UserProfile from './components/UserProfile'
 import HeatmapOverlay from './components/HeatmapOverlay'
 import HeatmapControls from './components/HeatmapControls'
+import AuthModal from './components/AuthModal'
 import socketService from './services/socketService'
+import AuthService from './services/authService'
 import './App.css'
 
 interface PlacedPixel {
@@ -32,6 +34,10 @@ function App() {
   const [heatmapTimeRange, setHeatmapTimeRange] = useState(24);
   const [heatmapData, setHeatmapData] = useState<{ x: number; y: number; intensity: number }[]>([]);
   const [maxHeatmapIntensity, setMaxHeatmapIntensity] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
 
   // Simple routing based on URL hash
   useEffect(() => {
@@ -52,7 +58,30 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Check authentication status on app load
+    const checkAuth = async () => {
+      const storedAuth = AuthService.getStoredAuth();
+      if (storedAuth) {
+        const authStatus = await AuthService.verifyAuth();
+        if (authStatus.valid) {
+          setIsAuthenticated(true);
+          setUsername(authStatus.username || null);
+        } else {
+          setIsAuthenticated(false);
+          setUsername(null);
+        }
+      }
+    };
+
+    checkAuth();
+
     socketService.connect();
+
+    // Set up authentication required handler
+    socketService.onAuthRequired((message) => {
+      setAuthMessage(message);
+      setShowAuthModal(true);
+    });
 
     const loadInitialCanvas = async () => {
       try {
@@ -81,6 +110,7 @@ function App() {
 
     return () => {
       socketService.disconnect();
+      socketService.removeAuthRequiredCallback();
     };
   }, []);
 
@@ -211,6 +241,13 @@ function App() {
       return;
     }
     
+    // Check if authenticated
+    if (!isAuthenticated) {
+      setAuthMessage('You need to sign in to place pixels!');
+      setShowAuthModal(true);
+      return;
+    }
+    
     // Optimistic update: Add pixel immediately for instant feedback
     const optimisticPixel = {
       x: selectedPixel.x,
@@ -231,6 +268,21 @@ function App() {
     // After painting: close interface but keep cursor position for further navigation
     setSelectedPixel(null);
     // Cursor position stays the same so user can continue moving with arrow keys
+  };
+
+  const handleAuthSuccess = async () => {
+    const authStatus = await AuthService.verifyAuth();
+    if (authStatus.valid) {
+      setIsAuthenticated(true);
+      setUsername(authStatus.username || null);
+      setShowAuthModal(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await AuthService.logout();
+    setIsAuthenticated(false);
+    setUsername(null);
   };
 
   // Show analytics dashboard
@@ -260,20 +312,65 @@ function App() {
         display: 'flex',
         gap: '10px'
       }}>
-        <button
-          onClick={() => setShowUserProfile(true)}
-          style={{
-            padding: '10px 15px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          👤 My Profile
-        </button>
+        {isAuthenticated ? (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{ 
+              color: '#333', 
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              padding: '5px 10px',
+              borderRadius: '5px'
+            }}>
+              👋 {username}
+            </span>
+            <button
+              onClick={() => setShowUserProfile(true)}
+              style={{
+                padding: '10px 15px',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              👤 Profile
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 15px',
+                backgroundColor: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              🚪 Logout
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setAuthMessage('Sign in to access your profile and place pixels!');
+              setShowAuthModal(true);
+            }}
+            style={{
+              padding: '10px 15px',
+              backgroundColor: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            🔑 Sign In
+          </button>
+        )}
         <button
           onClick={() => window.location.hash = 'badges'}
           style={{
@@ -346,12 +443,20 @@ function App() {
       />
       
       {/* User Profile Modal */}
-      {showUserProfile && (
+      {showUserProfile && isAuthenticated && username && (
         <UserProfile 
-          userId={socketService.getCurrentUserId()} 
+          userId={`user:${username}`} 
           onClose={() => setShowUserProfile(false)} 
         />
       )}
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message={authMessage}
+        onAuthSuccess={handleAuthSuccess}
+      />
     </div>
   )
 }

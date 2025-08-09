@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import socketService from "../services/socketService";
+import AuthService from "../services/authService";
 import { getBadgeEmoji, getBadgeColor } from "../utils/badge";
 
 interface Badge {
@@ -34,20 +34,21 @@ const BadgesPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const username = AuthService.getUsername();
         const [badgesResponse, profileResponse] = await Promise.all([
           fetch(`${import.meta.env.VITE_SERVER_URL}/api/badges`),
-          fetch(`${import.meta.env.VITE_SERVER_URL}/api/user/${socketService.getCurrentUserId()}`),
+          username ? fetch(`${import.meta.env.VITE_SERVER_URL}/api/user/user:${username}`) : Promise.resolve(null),
         ]);
 
-        if (!badgesResponse.ok || !profileResponse.ok) {
+        if (!badgesResponse.ok || (profileResponse && !profileResponse.ok)) {
           throw new Error("Failed to fetch data");
         }
 
         const badgesData: BadgeStats = await badgesResponse.json();
-        const profileData = await profileResponse.json();
+        const profileData = profileResponse ? await profileResponse.json() : null;
 
         setBadges(badgesData.badges);
-        setUserProfile(profileData.profile);
+        setUserProfile(profileData?.profile || null);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);

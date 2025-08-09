@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { colorIndexToHex, hexToColorIndex } from "@redis-place/shared";
+import AuthService from "./authService";
 
 interface PlacedPixel {
   x: number;
@@ -25,33 +26,7 @@ interface CanvasSnapshot {
 
 class SocketService {
   private socket: Socket | null = null;
-  private userId: string;
-
-  constructor() {
-    this.userId = this.getOrCreateUserId();
-  }
-
-  private getOrCreateUserId(): string {
-    const STORAGE_KEY = 'redis-place-user-id';
-    
-    // Try to get existing user ID from localStorage
-    const existingUserId = localStorage.getItem(STORAGE_KEY);
-    
-    if (existingUserId) {
-      console.log('Using existing user ID:', existingUserId);
-      return existingUserId;
-    }
-    
-    // Generate new user ID if none exists
-    const newUserId = this.generateUserId();
-    localStorage.setItem(STORAGE_KEY, newUserId);
-    console.log('Generated new user ID:', newUserId);
-    return newUserId;
-  }
-
-  private generateUserId(): string {
-    return `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-  }
+  private authRequiredCallback: ((message: string) => void) | null = null;
 
   connect(): void {
     if (this.socket?.connected) {
@@ -62,7 +37,8 @@ class SocketService {
 
     this.socket.on("connect", () => {
       console.log("Connected to server");
-      this.socket?.emit("join-canvas", { userId: this.userId });
+      const sessionToken = AuthService.getSessionToken();
+      this.socket?.emit("join-canvas", { sessionToken });
     });
 
     this.socket.on("disconnect", () => {
@@ -76,6 +52,13 @@ class SocketService {
     this.socket.on("error", (data) => {
       console.error("Socket error:", data.message);
     });
+
+    this.socket.on("auth-required", (data) => {
+      console.log("Authentication required:", data.message);
+      if (this.authRequiredCallback) {
+        this.authRequiredCallback(data.message);
+      }
+    });
   }
 
   disconnect(): void {
@@ -86,16 +69,17 @@ class SocketService {
   }
 
   placePixel(x: number, y: number, color: number): void {
-    console.log("placePixel called with:", { x, y, color, userId: this.userId });
+    console.log("placePixel called with:", { x, y, color });
     console.log("Socket connected:", this.socket?.connected);
 
     if (this.socket?.connected) {
       console.log("Emitting place-pixel event...");
+      const sessionToken = AuthService.getSessionToken();
       this.socket.emit("place-pixel", {
         x,
         y,
         color,
-        userId: this.userId,
+        sessionToken,
       });
     } else {
       console.error("Socket not connected");
@@ -171,8 +155,13 @@ class SocketService {
     return index;
   }
 
-  getCurrentUserId(): string {
-    return this.userId;
+
+  onAuthRequired(callback: (message: string) => void): void {
+    this.authRequiredCallback = callback;
+  }
+
+  removeAuthRequiredCallback(): void {
+    this.authRequiredCallback = null;
   }
 }
 
