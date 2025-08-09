@@ -1,0 +1,13 @@
+{
+  "name": "@redis-place/backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Backend dev server not configured yet'",
+    "build": "echo 'Backend build not configured yet'",
+    "test": "echo 'Backend tests not configured yet'",
+    "lint": "echo 'Backend linting not configured yet'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
