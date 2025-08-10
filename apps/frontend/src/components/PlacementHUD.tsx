@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { getAvailableColorIds, colorIdToHex } from '@redis-place/shared';
+import React, { useState, useEffect, useCallback } from "react";
+import { getAvailableColorIds, colorIdToHex } from "@redis-place/shared";
+import { useCanvasStore, useAuthStore } from "../stores";
 
-interface PlacementHUDProps {
-  selectedPixel: { x: number; y: number } | null;
-  onPlacePixel: (color: string) => void;
-  onColorPreview: (color: string | null) => void;
-  onCooldownChange: (active: boolean) => void;
-}
+// No props needed - component uses stores directly
+type PlacementHUDProps = Record<string, never>;
 
-const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview, onCooldownChange }) => {
+const PlacementHUD: React.FC<PlacementHUDProps> = () => {
+  // Use stores directly
+  const canvasStore = useCanvasStore();
+  const authStore = useAuthStore();
+
   const [selectedColorId, setSelectedColorId] = useState(5);
-  const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
+
+  // Get data from stores
+  const selectedPixel = canvasStore.selectedPixel;
+  const cooldownActive = canvasStore.cooldownActive;
 
   // Get available color IDs
   const availableColorIds = getAvailableColorIds();
@@ -20,10 +24,9 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     let interval: NodeJS.Timeout;
     if (cooldownActive && cooldownTime > 0) {
       interval = setInterval(() => {
-        setCooldownTime(prev => {
+        setCooldownTime((prev) => {
           if (prev <= 1) {
-            setCooldownActive(false);
-            onCooldownChange(false);
+            canvasStore.setCooldownActive(false);
             return 0;
           }
           return prev - 1;
@@ -31,7 +34,34 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [cooldownActive, cooldownTime, onCooldownChange]);
+  }, [cooldownActive, cooldownTime, canvasStore]);
+
+  const handlePlacePixel = useCallback(() => {
+    if (cooldownActive || !selectedPixel) return;
+
+    // Check authentication
+    if (!authStore.isAuthenticated) {
+      authStore.showModal("You need to sign in to place pixels!");
+      return;
+    }
+
+    const hexColor = colorIdToHex(selectedColorId);
+    if (hexColor) {
+      canvasStore.placePixel(hexColor);
+      canvasStore.setCooldownActive(true);
+      setCooldownTime(10); // 1 second at 100ms intervals
+    }
+  }, [cooldownActive, selectedPixel, selectedColorId]); // Remove store objects to prevent infinite loop
+
+  // Set color preview when pixel is selected or color changes
+  useEffect(() => {
+    if (selectedPixel && !cooldownActive) {
+      const hexColor = colorIdToHex(selectedColorId);
+      if (hexColor) {
+        canvasStore.setPreviewColor(hexColor);
+      }
+    }
+  }, [selectedPixel, selectedColorId, cooldownActive]); // Remove canvasStore to prevent infinite loop
 
   // Handle Enter key to paint when pixel is selected (but not during cooldown)
   useEffect(() => {
@@ -39,71 +69,54 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Enter to paint
-      if (e.key === 'Enter') {
+      if (e.key === "Enter") {
         e.preventDefault();
         handlePlacePixel();
         return;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPixel, cooldownActive]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPixel, cooldownActive, handlePlacePixel]);
 
-  // Set up color preview when color changes (but not during cooldown)
-  useEffect(() => {
-    if (selectedPixel && !cooldownActive) {
-      const hexColor = colorIdToHex(selectedColorId);
-      onColorPreview(hexColor);
-    } else {
-      onColorPreview(null);
-    }
-  }, [selectedColorId, selectedPixel, cooldownActive, onColorPreview]);
+  const handleColorSelect = useCallback(
+    (colorId: number) => {
+      if (cooldownActive) return; // Don't allow color changes during cooldown
+      setSelectedColorId(colorId);
 
-  // Clear preview when pixel is deselected or cooldown starts
-  useEffect(() => {
-    if (!selectedPixel || cooldownActive) {
-      onColorPreview(null);
-    }
-  }, [selectedPixel, cooldownActive, onColorPreview]);
-
-  const handlePlacePixel = () => {
-    if (cooldownActive || !selectedPixel) return;
-    const hexColor = colorIdToHex(selectedColorId);
-    if (hexColor) {
-      onPlacePixel(hexColor);
-      setCooldownActive(true);
-      setCooldownTime(10); // 1 second at 100ms intervals
-      onCooldownChange(true);
-    }
-  };
-
-  const handleColorSelect = (colorId: number) => {
-    if (cooldownActive) return; // Don't allow color changes during cooldown
-    setSelectedColorId(colorId);
-  };
+      // Set color preview in store when pixel is selected
+      if (selectedPixel) {
+        const hexColor = colorIdToHex(colorId);
+        if (hexColor) {
+          canvasStore.setPreviewColor(hexColor);
+        }
+      }
+    },
+    [cooldownActive, selectedPixel]
+  ); // Remove store objects to prevent infinite loop
 
   // Show cooldown state - but still allow pixel selection for pre-selection
   if (cooldownActive && !selectedPixel) {
     return (
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(0, 0, 0, 0.9)',
-        color: 'white',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        zIndex: 1000,
-        textAlign: 'center'
-      }}>
-        <div style={{ color: '#ff9900', fontWeight: 'bold' }}>
-          Cooldown: {(cooldownTime / 10).toFixed(1)}s
-        </div>
-        <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
+      <div
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(0, 0, 0, 0.9)",
+          color: "white",
+          padding: "12px 24px",
+          borderRadius: "8px",
+          fontFamily: "monospace",
+          fontSize: "14px",
+          zIndex: 1000,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ color: "#ff9900", fontWeight: "bold" }}>Cooldown: {(cooldownTime / 10).toFixed(1)}s</div>
+        <div style={{ marginTop: "8px", fontSize: "12px", color: "#aaa" }}>
           You can still select pixels while waiting
         </div>
       </div>
@@ -113,63 +126,77 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
   // Show prompt when no pixel selected
   if (!selectedPixel) {
     return (
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(0, 0, 0, 0.8)',
-        color: 'white',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        zIndex: 1000,
-        textAlign: 'center'
-      }}>
-        <div style={{ color: '#aaa' }}>
-          Click a pixel to select it
-        </div>
+      <div
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(0, 0, 0, 0.8)",
+          color: "white",
+          padding: "12px 24px",
+          borderRadius: "8px",
+          fontFamily: "monospace",
+          fontSize: "14px",
+          zIndex: 1000,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ color: "#aaa" }}>Click a pixel to select it</div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      background: 'rgba(0, 0, 0, 0.9)',
-      color: 'white',
-      padding: '20px',
-      borderRadius: '10px',
-      fontFamily: 'monospace',
-      fontSize: '14px',
-      zIndex: 1000,
-      minWidth: '300px',
-      textAlign: 'center'
-    }}>
+    <div
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "rgba(0, 0, 0, 0.9)",
+        color: "white",
+        padding: "20px",
+        borderRadius: "10px",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        zIndex: 1000,
+        minWidth: "300px",
+        textAlign: "center",
+      }}
+    >
       {cooldownActive && (
-        <div style={{ color: '#ff9900', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(255, 153, 0, 0.2)', borderRadius: '4px' }}>
+        <div
+          style={{
+            color: "#ff9900",
+            fontSize: "14px",
+            fontWeight: "bold",
+            marginBottom: "8px",
+            padding: "6px",
+            backgroundColor: "rgba(255, 153, 0, 0.2)",
+            borderRadius: "4px",
+          }}
+        >
           Cooldown: {(cooldownTime / 10).toFixed(1)}s - Pre-selecting for next paint
         </div>
       )}
-      <div style={{ color: '#ffff00', fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>
+      <div style={{ color: "#ffff00", fontSize: "16px", fontWeight: "bold", marginBottom: "12px" }}>
         Selected: ({selectedPixel.x}, {selectedPixel.y})
       </div>
-      
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '14px', marginBottom: '8px' }}>Choose color:</div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          gap: '6px',
-          marginBottom: '16px',
-          justifyContent: 'center',
-          maxWidth: '280px',
-          margin: '0 auto 16px auto'
-        }}>
+
+      <div style={{ marginBottom: "12px" }}>
+        <div style={{ fontSize: "14px", marginBottom: "8px" }}>Choose color:</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(8, 1fr)",
+            gap: "6px",
+            marginBottom: "16px",
+            justifyContent: "center",
+            maxWidth: "280px",
+            margin: "0 auto 16px auto",
+          }}
+        >
           {availableColorIds.map((colorId) => {
             const hexColor = colorIdToHex(colorId);
             if (!hexColor) return null;
@@ -179,26 +206,28 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
                 key={colorId}
                 onClick={() => handleColorSelect(colorId)}
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: "28px",
+                  height: "28px",
                   backgroundColor: hexColor,
-                  cursor: cooldownActive ? 'not-allowed' : 'pointer',
-                  border: selectedColorId === colorId ? '3px solid white' : '2px solid #666',
-                  borderRadius: '4px',
-                  transition: 'border-color 0.2s',
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: cooldownActive ? 0.5 : 1
+                  cursor: cooldownActive ? "not-allowed" : "pointer",
+                  border: selectedColorId === colorId ? "3px solid white" : "2px solid #666",
+                  borderRadius: "4px",
+                  transition: "border-color 0.2s",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: cooldownActive ? 0.5 : 1,
                 }}
               >
-                <span style={{
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  color: colorId === 1 ? '#000' : '#fff',
-                  textShadow: colorId === 1 ? 'none' : '0px 0px 3px rgba(0,0,0,1)',
-                }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "bold",
+                    color: colorId === 1 ? "#000" : "#fff",
+                    textShadow: colorId === 1 ? "none" : "0px 0px 3px rgba(0,0,0,1)",
+                  }}
+                >
                   {colorId}
                 </span>
               </div>
@@ -211,23 +240,23 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
         onClick={handlePlacePixel}
         disabled={cooldownActive}
         style={{
-          padding: '12px 24px',
-          backgroundColor: cooldownActive ? '#666' : '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: cooldownActive ? 'not-allowed' : 'pointer',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          transition: 'background-color 0.2s'
+          padding: "12px 24px",
+          backgroundColor: cooldownActive ? "#666" : "#4CAF50",
+          color: "white",
+          border: "none",
+          borderRadius: "6px",
+          cursor: cooldownActive ? "not-allowed" : "pointer",
+          fontSize: "14px",
+          fontWeight: "bold",
+          transition: "background-color 0.2s",
         }}
       >
-        {cooldownActive ? `Wait ${(cooldownTime / 10).toFixed(1)}s` : 'Paint Pixel'}
+        {cooldownActive ? `Wait ${(cooldownTime / 10).toFixed(1)}s` : "Paint Pixel"}
       </button>
 
-      <div style={{ marginTop: '12px', fontSize: '11px', color: '#888' }}>
+      <div style={{ marginTop: "12px", fontSize: "11px", color: "#888" }}>
         <div>ESC: deselect • ENTER: paint</div>
-        <div style={{ marginTop: '4px', fontSize: '10px', color: '#666' }}>
+        <div style={{ marginTop: "4px", fontSize: "10px", color: "#666" }}>
           SPACE: select pixel • Arrow keys: move cursor
         </div>
       </div>

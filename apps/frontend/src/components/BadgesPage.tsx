@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AuthService from "../services/authService";
+import NavigationHeader from "./NavigationHeader";
 import { getBadgeEmoji, getBadgeColor } from "../utils/badge";
 
 interface Badge {
@@ -118,41 +119,15 @@ const BadgesPage = () => {
         fontFamily: "Arial, sans-serif",
       }}
     >
+      <NavigationHeader />
+
       {/* Header */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px", marginTop: "80px" }}>
         <h1>🏆 Badge Collection</h1>
         <div style={{ fontSize: "14px", color: "#888", marginBottom: "15px" }}>
           Earn badges by placing pixels and exploring the canvas • You have {earnedCount} of {badges.length} badges
           <br />
           Progress: {badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0}% complete
-        </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={() => (window.location.hash = "")}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            ← Back to Canvas
-          </button>
-          <button
-            onClick={() => (window.location.hash = "analytics")}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#FF9800",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            📊 Analytics
-          </button>
         </div>
       </div>
 
