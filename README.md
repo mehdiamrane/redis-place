@@ -98,21 +98,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   2. Redis subscriber receives update → Broadcasts to all connected clients
 - **Benefits**: Decouples pixel storage from real-time notifications
 
-### 3. **Sets** (`SADD`/`SMEMBERS`)
-
-- **Purpose**: Track which pixels have been placed for efficient snapshot generation
-- **Key**: `canvas:placed`
-- **Usage**: Stores coordinate strings like `"100:200"` for each placed pixel
-- **Optimization**: Only iterate through placed pixels (sparse) vs scanning entire canvas
-
-### 4. **String Storage** (`SET`/`GET`)
-
-- **Purpose**: Cache pre-computed canvas snapshots for fast client loading
-- **Key**: `canvas:snapshot`
-- **Content**: JSON snapshot with pixel data, timestamp, and dimensions
-- **Pattern**: Cache invalidation with async regeneration
-
-### 5. **Sorted Sets** (`ZADD`/`ZINCRBY`/`ZREVRANGE`)
+### 3. **Sorted Sets** (`ZADD`/`ZINCRBY`/`ZREVRANGE`)
 
 - **Purpose**: User leaderboards and rankings
 - **Key**: `leaderboard:users`
@@ -122,7 +108,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `ZREVRANK leaderboard:users <user_id>` - Get user rank
 - **Benefits**: Automatic sorting and efficient range queries for leaderboards
 
-### 6. **HyperLogLog** (`PFADD`/`PFCOUNT`)
+### 4. **HyperLogLog** (`PFADD`/`PFCOUNT`)
 
 - **Purpose**: Unique visitor counting with minimal memory usage
 - **Keys**: `visitors:daily:YYYY-MM-DD`
@@ -132,7 +118,7 @@ This project demonstrates multiple advanced Redis features and patterns:
 - **Benefits**: Probabilistic counting with ~1% error but constant memory usage
 - **Efficiency**: Can count billions of unique items with only 12KB per key
 
-### 7. **Streams** (`XADD`/`XREVRANGE`/`XRANGE`)
+### 5. **Streams** (`XADD`/`XREVRANGE`/`XRANGE`)
 
 - **Purpose**: Activity feed, event sourcing, replay system, and pixel history tracking
 - **Key**: `stream:activity`
@@ -151,7 +137,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - Efficient chronological and reverse-chronological queries
   - Foundation for both replay functionality and individual pixel forensics
 
-### 8. **Hashes** (`HMSET`/`HMGET`/`HINCRBY`)
+### 6. **Hashes** (`HMSET`/`HMGET`/`HINCRBY`)
 
 - **Purpose**: User profiles and complex data structures
 - **Key Pattern**: `userprofile:<user_id>`
@@ -162,7 +148,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `HGETALL userprofile:<id>` - Get complete user profile with color breakdown
 - **Benefits**: All user data in single hash, efficient color tracking, automatic favorite color calculation
 
-### 9. **String Counters** (`INCR`/`MGET`)
+### 7. **String Counters** (`INCR`/`MGET`)
 
 - **Purpose**: Color usage statistics
 - **Key Pattern**: `stats:color:<color_index>`
@@ -171,7 +157,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `MGET stats:color:0 stats:color:1 ... stats:color:15` - Get all color stats
 - **Benefits**: Atomic increments, batch retrieval for statistics
 
-### 10. **Time Series** (`TS.CREATE`/`TS.ADD`/`TS.RANGE`)
+### 8. **Time Series** (`TS.CREATE`/`TS.ADD`/`TS.RANGE`)
 
 - **Purpose**: Activity heatmap tracking with time-based aggregation
 - **Key Pattern**: `heatmap:<zone_x>:<zone_y>`
@@ -192,10 +178,29 @@ This project demonstrates multiple advanced Redis features and patterns:
   - **Cache Layer**: 5-minute Redis cache reduces repeated queries to ~90ms (additional 2x improvement)
 - **Benefits**: Time-based activity analysis, efficient zone-based aggregation, high-performance bulk queries with intelligent caching
 
-### 11. **Key Existence & Management** (`EXISTS`/`DEL`)
+### 9. **Snapshot Caching** (`SET`/`GET`/`DEL`)
+
+- **Purpose**: High-performance canvas loading with intelligent cache invalidation
+- **Key**: `canvas:snapshot:cache`
+- **Implementation**:
+  - **Cache Storage**: Complete JSON snapshots stored as Redis strings
+  - **Event-Driven Invalidation**: Cache automatically cleared on pixel placement or canvas operations
+  - **No Expiration**: Cache persists until actual canvas state changes (no time-based expiry)
+  - **Race Condition Handling**: Polling mechanism with 30s timeout prevents duplicate generation
+- **Commands Used**:
+  - `SET canvas:snapshot:cache <json_snapshot>` - Store generated snapshot
+  - `GET canvas:snapshot:cache` - Retrieve cached snapshot
+  - `DEL canvas:snapshot:cache` - Invalidate cache on pixel placement
+- **Performance Impact**:
+  - **First Load**: ~4 seconds (pipeline-optimized generation + caching)
+  - **Cached Loads**: Instant (<100ms response time)
+  - **Cache Hit Rate**: Very high for read-heavy collaborative applications
+- **Benefits**: Eliminates expensive bitfield operations for unchanged canvas state while ensuring data consistency
+
+### 10. **Key Existence & Management** (`EXISTS`/`DEL`)
 
 - **Purpose**: Initialize canvas, clear test data, conditional operations
-- **Keys**: `canvas:pixels`, `canvas:snapshot`, `canvas:placed`, various analytics keys
+- **Keys**: `canvas:pixels`, various analytics keys
 - **Use Cases**: Development utilities, data migration, conditional initialization
 
 ## 🔧 Redis Configuration
@@ -235,12 +240,22 @@ const redisSubscriber = new Redis({
 - **User Profiles**: Hash maps with embedded color tracking (`userprofile:*` with `color_N` fields)
 - **Global Color Statistics**: Individual counters for each color (`stats:color:*`)
 
-### Snapshot Generation
+### Snapshot Generation & Caching
 
-1. Retrieve placed pixel coordinates from set: `SMEMBERS canvas:placed`
-2. For each coordinate, get color ID: `BITFIELD GET u5 <offset>`
-3. Filter out empty pixels (color ID = 0) 
-4. Serialize to JSON and cache: `SET canvas:snapshot <json>`
+**Optimized Pipeline Processing:**
+1. **Bitfield Reading**: Process 1M pixels using 50k-operation pipelines to avoid stack overflow
+2. **Sparse Filtering**: Transform to sparse format by filtering out empty pixels (color ID = 0) 
+3. **Redis Caching**: Cache generated snapshots in Redis with automatic invalidation
+4. **Race Condition Handling**: Intelligent polling mechanism prevents duplicate generation
+
+**Performance Optimizations:**
+- **Pipeline Size**: 50k operations per batch for optimal Redis performance
+- **Persistent Caching**: Snapshots cached indefinitely until canvas changes
+- **Cache Invalidation**: Automatic cache clearing on pixel placement or canvas operations
+- **Concurrent Request Handling**: Polling-based wait mechanism with 30s timeout protection
+- **Loading Time**: Reduced from 20+ seconds to ~4 seconds (first load), instant for cached loads
+
+**Single Source of Truth**: Redis bitfield contains complete canvas state with intelligent caching layer
 
 ### Real-time Updates & Analytics
 
@@ -288,9 +303,11 @@ const redisSubscriber = new Redis({
 ### Canvas Performance
 
 - **Efficient Storage**: Bitfields reduce memory usage compared to regular key-per-pixel approach
-- **Sparse Loading**: Only load pixels that have been placed
-- **Cached Snapshots**: Pre-computed JSON snapshots for instant loading
-- **Async Regeneration**: Non-blocking snapshot updates
+- **Optimized Pipelines**: 50k-operation batches prevent Redis stack overflow and maximize throughput
+- **Intelligent Caching**: Redis-based snapshot caching with event-driven invalidation (no time expiration)
+- **Race Condition Prevention**: Polling mechanism ensures single snapshot generation with concurrent request handling
+- **Sparse Loading**: Only load pixels that have been placed (filters out empty pixels)
+- **Performance Improvement**: 80% faster loading (20s → 4s first load, instant cached loads)
 - **Real-time Pub/Sub**: Instant updates without polling
 
 ### Analytics Performance

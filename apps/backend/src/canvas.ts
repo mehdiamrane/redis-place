@@ -1,15 +1,15 @@
 import redis from './redis';
 import { CanvasSnapshot } from './types';
-import { colorIdToHex, hexToColorId, isEmptyPixel } from '@redis-place/shared';
+import { colorIdToHex, hexToColorId } from '@redis-place/shared';
 
 export const CANVAS_WIDTH = 1000;
 export const CANVAS_HEIGHT = 1000;
 export const CANVAS_KEY = 'canvas:pixels';
-export const SNAPSHOT_KEY = 'canvas:snapshot';
-export const PLACED_PIXELS_KEY = 'canvas:placed';
+export const CANVAS_SNAPSHOT_CACHE_KEY = 'canvas:snapshot:cache';
 export const HEATMAP_ZONE_SIZE = 50; // 50x50 pixel zones = 20x20 grid
 
 export class CanvasManager {
+  private static isGeneratingSnapshot = false;
   static pixelToIndex(x: number, y: number): number {
     return y * CANVAS_WIDTH + x;
   }
@@ -34,9 +34,9 @@ export class CanvasManager {
     const bitOffset = pixelIndex * 5;
     await redis.bitfield(CANVAS_KEY, 'SET', 'u5', bitOffset, color);
     
-    // Track placed pixels for efficient snapshot generation
-    const pixelKey = `${x}:${y}`;
-    await redis.sadd(PLACED_PIXELS_KEY, pixelKey);
+    // Invalidate snapshot cache since canvas has changed
+    await redis.del(CANVAS_SNAPSHOT_CACHE_KEY);
+    console.log('Canvas snapshot cache invalidated due to pixel placement');
     
     // Add heatmap zone tracking
     const zoneX = Math.floor(x / HEATMAP_ZONE_SIZE);
@@ -54,11 +54,6 @@ export class CanvasManager {
         console.error('Error adding to heatmap time series:', createError);
       }
     }
-    
-    // Regenerate snapshot asynchronously (non-blocking)
-    this.generateSnapshot().catch(error => 
-      console.error('Async snapshot generation failed:', error)
-    );
   }
 
   static async getPixel(x: number, y: number): Promise<number> {
@@ -76,74 +71,129 @@ export class CanvasManager {
   }
 
   static async generateSnapshot(): Promise<CanvasSnapshot> {
-    console.log('Generating canvas snapshot...');
-    const pixels: { x: number; y: number; color: number }[] = [];
+    console.log('Generating canvas snapshot with Redis caching');
     
     // Check if canvas exists
     const canvasExists = await redis.exists(CANVAS_KEY);
     if (!canvasExists) {
-      const snapshot: CanvasSnapshot = {
+      console.log('Canvas does not exist, returning empty snapshot');
+      return {
         data: [],
         timestamp: Date.now(),
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT
       };
-      await redis.call('JSON.SET', SNAPSHOT_KEY, '$', JSON.stringify(snapshot));
-      console.log('Generated empty canvas snapshot');
-      return snapshot;
     }
 
-    // Get all placed pixels from the tracked set
-    console.log('Loading placed pixels from Redis set...');
-    const placedPixelKeys = await redis.smembers(PLACED_PIXELS_KEY);
+    // Check Redis cache first
+    const cachedSnapshot = await redis.get(CANVAS_SNAPSHOT_CACHE_KEY);
+    if (cachedSnapshot) {
+      console.log('Returning cached snapshot from Redis');
+      return JSON.parse(cachedSnapshot);
+    }
     
-    console.log(`Found ${placedPixelKeys.length} placed pixels to load`);
-    
-    // Load color for each placed pixel
-    for (const pixelKey of placedPixelKeys) {
-      const [xStr, yStr] = pixelKey.split(':');
-      const x = parseInt(xStr, 10);
-      const y = parseInt(yStr, 10);
+    // Prevent multiple simultaneous generations - wait for ongoing generation to complete
+    if (this.isGeneratingSnapshot) {
+      console.log('Snapshot generation already in progress, waiting for completion...');
       
-      if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-        const color = await this.getPixel(x, y);
-        if (!isEmptyPixel(color)) {
-          pixels.push({ x, y, color });
+      // Poll until generation completes (with timeout)
+      const maxWaitTime = 30000; // 30 seconds max wait
+      const pollInterval = 500; // Check every 500ms
+      const startTime = Date.now();
+      
+      while (this.isGeneratingSnapshot && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+        // Check if cache is now available
+        const cachedSnapshot = await redis.get(CANVAS_SNAPSHOT_CACHE_KEY);
+        if (cachedSnapshot) {
+          console.log('Returning snapshot cached by concurrent generation');
+          return JSON.parse(cachedSnapshot);
         }
       }
+      
+      // If we timed out, let this request proceed (rare edge case)
+      if (this.isGeneratingSnapshot) {
+        console.log('Timed out waiting for concurrent generation, proceeding anyway');
+      }
     }
     
-    const snapshot: CanvasSnapshot = {
-      data: pixels,
-      timestamp: Date.now(),
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT
-    };
-
-    await redis.call('JSON.SET', SNAPSHOT_KEY, '$', JSON.stringify(snapshot));
-    console.log(`Generated snapshot with ${pixels.length} pixels`);
-    return snapshot;
+    this.isGeneratingSnapshot = true;
+    
+    try {
+      // Optimized bitfield reading with larger pipelines for faster processing
+      console.log('Reading bitfield with optimized pipelines...');
+      const pixels: { x: number; y: number; color: number }[] = [];
+      const totalPixels = CANVAS_WIDTH * CANVAS_HEIGHT;
+      const pipelineSize = 50000; // Larger but safer pipeline size
+      
+      let processedPixels = 0;
+      
+      for (let i = 0; i < totalPixels; i += pipelineSize) {
+        const pipeline = redis.pipeline();
+        const endIdx = Math.min(i + pipelineSize, totalPixels);
+        
+        // Add BITFIELD GET commands to pipeline
+        for (let j = i; j < endIdx; j++) {
+          pipeline.bitfield(CANVAS_KEY, 'GET', 'u5', j * 5);
+        }
+        
+        const results = await pipeline.exec();
+        
+        // Process results efficiently
+        if (results) {
+          for (let k = 0; k < results.length; k++) {
+            const [err, result] = results[k];
+            const pixelIndex = i + k;
+            
+            if (!err && result && Array.isArray(result) && result.length > 0) {
+              const color = result[0] || 0;
+              if (color > 0) { // Only include non-empty pixels
+                const x = pixelIndex % CANVAS_WIDTH;
+                const y = Math.floor(pixelIndex / CANVAS_WIDTH);
+                pixels.push({ x, y, color });
+              }
+            }
+          }
+        }
+        
+        processedPixels += (endIdx - i);
+        
+        // Log progress every 100k pixels
+        if (processedPixels % 100000 === 0 || processedPixels === totalPixels) {
+          console.log(`Processed ${processedPixels}/${totalPixels} pixels, found ${pixels.length} non-empty pixels`);
+        }
+      }
+      
+      console.log(`Completed optimized snapshot generation: ${pixels.length} non-empty pixels found`);
+      
+      const snapshot: CanvasSnapshot = {
+        data: pixels,
+        timestamp: Date.now(),
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT
+      };
+      
+      // Cache the result in Redis (no expiration, invalidated on pixel changes)
+      await redis.set(CANVAS_SNAPSHOT_CACHE_KEY, JSON.stringify(snapshot));
+      console.log('Snapshot cached in Redis (valid until canvas changes)');
+      
+      return snapshot;
+    } finally {
+      this.isGeneratingSnapshot = false;
+    }
   }
 
-  static async getSnapshot(): Promise<CanvasSnapshot | null> {
-    try {
-      const snapshotData = await redis.call('JSON.GET', SNAPSHOT_KEY) as string;
-      if (!snapshotData) {
-        return await this.generateSnapshot();
-      }
-      return JSON.parse(snapshotData);
-    } catch (error) {
-      console.error('Error getting snapshot:', error);
-      return await this.generateSnapshot();
-    }
+  static async getSnapshot(): Promise<CanvasSnapshot> {
+    // Always generate snapshot fresh from bitfield (single source of truth)
+    return await this.generateSnapshot();
   }
 
   static async clearCanvas(): Promise<void> {
     console.log('Clearing canvas data...');
     await redis.del(CANVAS_KEY);
-    await redis.del(SNAPSHOT_KEY);
-    await redis.del(PLACED_PIXELS_KEY);
-    console.log('Canvas data cleared');
+    await redis.del(CANVAS_SNAPSHOT_CACHE_KEY);
+    console.log('Canvas data and cache cleared');
   }
 
   static async initializeCanvas(): Promise<void> {
@@ -154,9 +204,7 @@ export class CanvasManager {
       // Initialize canvas with a single pixel to create the key
       await redis.bitfield(CANVAS_KEY, 'SET', 'u5', 0, 0);
     }
-    
-    // Generate snapshot for fast loading
-    await this.generateSnapshot();
+    console.log('Canvas initialized');
   }
 
   static colorIdToHex(colorId: number): string | null {

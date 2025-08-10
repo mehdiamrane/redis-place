@@ -40,6 +40,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [isCanvasLoading, setIsCanvasLoading] = useState(true);
 
   // Simple routing based on URL hash
   useEffect(() => {
@@ -89,10 +90,13 @@ function App() {
 
     const loadInitialCanvas = async () => {
       try {
+        setIsCanvasLoading(true);
         const pixels = await socketService.loadCanvas();
         setPlacedPixels(pixels);
       } catch (error) {
         console.error('Error loading canvas:', error);
+      } finally {
+        setIsCanvasLoading(false);
       }
     };
 
@@ -313,6 +317,64 @@ function App() {
       height: '100vh', 
       overflow: 'hidden'
     }}>
+      {/* Canvas Loading Screen */}
+      {isCanvasLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#1a1a1a',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          color: 'white',
+          fontFamily: 'Arial, sans-serif'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '20px'
+          }}>
+            🎨
+          </div>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #333',
+            borderTop: '4px solid #666',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }}></div>
+          <h2 style={{ 
+            margin: '0 0 20px 0',
+            fontSize: '24px',
+            fontWeight: 'normal'
+          }}>
+            Loading Canvas...
+          </h2>
+          <p style={{ 
+            margin: '0 0 10px 0',
+            fontSize: '16px',
+            color: '#888',
+            textAlign: 'center',
+            maxWidth: '500px'
+          }}>
+            Reading 1 million pixels from Redis bitfield
+          </p>
+          <p style={{ 
+            margin: '0',
+            fontSize: '14px',
+            color: '#666',
+            textAlign: 'center'
+          }}>
+            This may take a few seconds on first load...
+          </p>
+        </div>
+      )}
       {/* Top Right Buttons */}
       <div style={{
         position: 'fixed',
