@@ -1,4 +1,6 @@
 import React from "react";
+import { HUDPanel, HUDStatusDot } from './ui';
+import { theme } from '../styles/theme';
 
 interface ConnectionStatusProps {
   status: "connecting" | "connected" | "disconnected";
@@ -10,19 +12,19 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ status }) => {
       case "connected":
         return {
           text: "Connected",
-          color: "#4CAF50",
+          color: theme.colors.connected,
           show: true,
         };
       case "connecting":
         return {
           text: "Connecting...",
-          color: "#FF9800",
+          color: theme.colors.connecting,
           show: true,
         };
       case "disconnected":
         return {
           text: "Disconnected",
-          color: "#f44336",
+          color: theme.colors.disconnected,
           show: true,
         };
       default:
@@ -35,34 +37,22 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ status }) => {
   if (!config.show) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: "20px",
-        left: "20px",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "6px 12px",
-        background: "rgba(0, 0, 0, 0.7)",
+    <HUDPanel
+      position="relative"
+      background="status"
+      size="compact"
+      shape="pill"
+      layout="row"
+      style={{ 
         color: config.color,
-        borderRadius: "20px",
-        fontSize: "12px",
-        fontWeight: "bold",
-        fontFamily: "monospace",
+        fontWeight: 'bold',
+        fontSize: theme.fontSize.md,
+        width: 'fit-content'
       }}
     >
-      <div
-        style={{
-          width: "8px",
-          height: "8px",
-          borderRadius: "50%",
-          backgroundColor: config.color,
-        }}
-      ></div>
+      <HUDStatusDot color={config.color || theme.colors.gray} />
       {config.text}
-    </div>
+    </HUDPanel>
   );
 };
 

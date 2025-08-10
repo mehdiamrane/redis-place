@@ -1,4 +1,7 @@
 import React from "react";
+import styled from 'styled-components';
+import { HUDPanel, HUDSection, HUDGroup, Button } from './ui';
+import { theme } from '../styles/theme';
 
 interface HeatmapControlsProps {
   showHeatmap: boolean;
@@ -7,6 +10,33 @@ interface HeatmapControlsProps {
   onTimeRangeChange: (hours: number) => void;
   onRefreshData: () => void;
 }
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: ${theme.colors.white};
+  
+  input {
+    margin-right: ${theme.spacing.sm};
+  }
+`;
+
+const TimeRangeGrid = styled.div`
+  display: flex;
+  gap: ${theme.spacing.xs};
+`;
+
+const LegendSection = styled.div`
+  font-size: ${theme.fontSize.md};
+  opacity: 0.8;
+  border-top: 1px solid ${theme.colors.gray};
+  padding-top: ${theme.spacing.sm};
+  
+  > div {
+    margin-bottom: ${theme.spacing.xs};
+  }
+`;
 
 const HeatmapControls: React.FC<HeatmapControlsProps> = ({
   showHeatmap,
@@ -23,118 +53,66 @@ const HeatmapControls: React.FC<HeatmapControlsProps> = ({
   ];
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "80px",
-        right: "20px",
-        background: "rgba(0, 0, 0, 0.8)",
-        color: "white",
-        padding: "16px",
-        borderRadius: "8px",
-        fontFamily: "monospace",
-        fontSize: "14px",
-        zIndex: 1000,
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        minWidth: "200px",
-      }}
+    <HUDPanel
+      position="relative"
+      title="🔥 Activity Heatmap"
     >
-      <h3
-        style={{
-          margin: 0,
-          fontSize: "16px",
-          fontWeight: "bold",
-        }}
-      >
-        Activity Heatmap
-      </h3>
-
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+      <HUDSection>
+        <CheckboxLabel>
           <input
             type="checkbox"
             checked={showHeatmap}
             onChange={(e) => onToggleHeatmap(e.target.checked)}
-            style={{ marginRight: "8px" }}
           />
           Show Heatmap
+        </CheckboxLabel>
+      </HUDSection>
+
+      <HUDGroup>
+        <label style={{ 
+          fontSize: theme.fontSize.base, 
+          fontWeight: 500, 
+          color: showHeatmap ? theme.colors.white : theme.colors.gray,
+          opacity: showHeatmap ? 1 : 0.6
+        }}>
+          Time Range:
         </label>
-      </div>
+        <TimeRangeGrid>
+          {timeRangeOptions.map((option) => (
+            <Button
+              key={option.value}
+              size="small"
+              variant={timeRange === option.value ? "primary" : "gray"}
+              onClick={() => onTimeRangeChange(option.value)}
+              disabled={!showHeatmap}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </TimeRangeGrid>
+      </HUDGroup>
 
-      {showHeatmap && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <label
-            style={{
-              fontSize: "14px",
-              fontWeight: 500,
-            }}
-          >
-            Time Range:
-          </label>
-          <div style={{ display: "flex", gap: "4px" }}>
-            {timeRangeOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => onTimeRangeChange(option.value)}
-                style={{
-                  padding: "6px 12px",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "12px",
-                  fontWeight: "medium",
-                  cursor: "pointer",
-                  transition: "background-color 0.2s",
-                  backgroundColor: timeRange === option.value ? "#4CAF50" : "#666",
-                  color: "white",
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onRefreshData}
-            style={{
-              width: "100%",
-              marginTop: "8px",
-              fontSize: "12px",
-              padding: "8px 16px",
-              backgroundColor: "#ff9800",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              transition: "background-color 0.3s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#f57c00")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#ff9800")}
-          >
-            🔄 Refresh (Skip Cache)
-          </button>
-        </div>
-      )}
-
-      {showHeatmap && (
-        <div
-          style={{
-            fontSize: "12px",
-            opacity: 0.8,
-            marginTop: "4px",
-            borderTop: "1px solid #666",
-            paddingTop: "8px",
-          }}
+      <HUDGroup>
+        <Button
+          variant="warning"
+          size="small"
+          onClick={onRefreshData}
+          disabled={!showHeatmap}
+          style={{ width: '100%' }}
         >
+          🔄 Refresh (Skip Cache)
+        </Button>
+      </HUDGroup>
+
+      <HUDSection>
+        <LegendSection style={{ opacity: showHeatmap ? 0.8 : 0.4 }}>
           <div>🔵 Cold zones (low activity)</div>
           <div>🟢 Moderate activity</div>
           <div>🟡 High activity</div>
           <div>🔴 Hot zones (very active)</div>
-        </div>
-      )}
-    </div>
+        </LegendSection>
+      </HUDSection>
+    </HUDPanel>
   );
 };
 

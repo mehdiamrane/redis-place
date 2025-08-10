@@ -7,10 +7,21 @@ interface PlacedPixel {
   timestamp: number;
 }
 
+interface ReplayEvent {
+  id: string;
+  userId: string;
+  x: number;
+  y: number;
+  color: number;
+  timestamp: number;
+}
+
 interface ReplayCanvasProps {
   width: number;
   height: number;
   placedPixels: PlacedPixel[];
+  currentEvent?: ReplayEvent;
+  autoCenterOnPixel?: boolean;
   onZoomChange?: (zoom: number) => void;
   onPanChange?: (pan: { x: number, y: number }) => void;
 }
@@ -19,6 +30,8 @@ const ReplayCanvas: React.FC<ReplayCanvasProps> = ({
   width, 
   height, 
   placedPixels, 
+  currentEvent,
+  autoCenterOnPixel = true,
   onZoomChange, 
   onPanChange 
 }) => {
@@ -181,6 +194,58 @@ const ReplayCanvas: React.FC<ReplayCanvasProps> = ({
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Auto-center on current event pixel
+  useEffect(() => {
+    if (!currentEvent || !autoCenterOnPixel || isDragging) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Calculate the pixel position in canvas coordinates
+    const pixelCenterX = (currentEvent.x + 0.5) * pixelSize * zoom;
+    const pixelCenterY = (currentEvent.y + 0.5) * pixelSize * zoom;
+
+    // Calculate desired pan to center this pixel
+    const desiredPanX = canvas.width / 2 - pixelCenterX;
+    const desiredPanY = canvas.height / 2 - pixelCenterY;
+
+    // Constrain the pan to valid bounds
+    const constrainedPan = constrainPan({ x: desiredPanX, y: desiredPanY });
+
+    // Smooth transition to new pan position
+    const animatePan = () => {
+      const duration = 300; // ms
+      const startTime = Date.now();
+      const startPan = { ...pan };
+      const deltaX = constrainedPan.x - startPan.x;
+      const deltaY = constrainedPan.y - startPan.y;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth animation
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        const newPan = {
+          x: startPan.x + deltaX * easeProgress,
+          y: startPan.y + deltaY * easeProgress
+        };
+
+        setPan(newPan);
+        onPanChange?.(newPan);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      requestAnimationFrame(animate);
+    };
+
+    animatePan();
+  }, [currentEvent, autoCenterOnPixel, zoom, constrainPan, onPanChange, isDragging]);
 
   useEffect(() => {
     const handleMouseUpGlobal = () => setIsDragging(false);

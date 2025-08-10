@@ -1,6 +1,76 @@
 import React, { useState, useEffect, useCallback } from "react";
+import styled from "styled-components";
 import { getAvailableColorIds, colorIdToHex } from "@redis-place/shared";
 import { useCanvasStore, useAuthStore } from "../stores";
+import { HUDPanel, HUDLabel, HUDValue, HUDSection, HUDGroup, Button } from "./ui";
+import { theme } from "../styles/theme";
+
+const ColorGrid = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: ${theme.spacing.md};
+  align-items: flex-start;
+  max-width: 450px;
+`;
+
+const ColorRow = styled.div<{ itemCount: number }>`
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+`;
+
+const ColorSwatch = styled.div<{
+  color: string;
+  selected: boolean;
+  disabled: boolean;
+  colorId: number;
+}>`
+  width: 38px;
+  height: 38px;
+  background-color: ${(props) => props.color};
+  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
+  border: ${(props) => (props.selected ? `3px solid ${theme.colors.white}` : `2px solid ${theme.colors.gray}`)};
+  border-radius: ${theme.borderRadius.md};
+  transition: all ${theme.transitions.fast};
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
+  box-shadow: ${(props) => (props.selected ? `0 0 12px ${props.color}40` : "0 2px 4px rgba(0,0,0,0.2)")};
+
+  &:hover:not([disabled]) {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  span {
+    font-size: ${theme.fontSize.xs};
+    font-weight: bold;
+    color: ${(props) => (props.colorId === 1 ? theme.colors.dark : theme.colors.white)};
+    text-shadow: ${(props) => (props.colorId === 1 ? "none" : "0px 0px 3px rgba(0,0,0,1)")};
+  }
+`;
+
+const CooldownBanner = styled.div`
+  color: ${theme.colors.warning};
+  font-size: ${theme.fontSize.base};
+  font-weight: bold;
+  margin-bottom: ${theme.spacing.sm};
+  padding: 6px;
+  background-color: rgba(255, 153, 0, 0.2);
+  border-radius: ${theme.borderRadius.sm};
+`;
+
+const HelpText = styled.div`
+  margin-top: ${theme.spacing.xs};
+  padding: 2px 0;
+  font-size: ${theme.fontSize.sm};
+  color: ${theme.colors.lightGray};
+  text-align: center;
+  opacity: 0.85;
+`;
 
 // No props needed - component uses stores directly
 type PlacementHUDProps = Record<string, never>;
@@ -99,168 +169,92 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
   // Show cooldown state - but still allow pixel selection for pre-selection
   if (cooldownActive && !selectedPixel) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(0, 0, 0, 0.9)",
-          color: "white",
-          padding: "12px 24px",
-          borderRadius: "8px",
-          fontFamily: "monospace",
-          fontSize: "14px",
-          zIndex: 1000,
-          textAlign: "center",
-        }}
-      >
-        <div style={{ color: "#ff9900", fontWeight: "bold" }}>Cooldown: {(cooldownTime / 10).toFixed(1)}s</div>
-        <div style={{ marginTop: "8px", fontSize: "12px", color: "#aaa" }}>
-          You can still select pixels while waiting
-        </div>
-      </div>
+      <HUDPanel placement="bottom-center" size="normal" style={{ textAlign: "center" }}>
+        <CooldownBanner>Cooldown: {(cooldownTime / 10).toFixed(1)}s</CooldownBanner>
+        <HUDLabel>You can still select pixels while waiting</HUDLabel>
+      </HUDPanel>
     );
   }
 
   // Show prompt when no pixel selected
   if (!selectedPixel) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(0, 0, 0, 0.8)",
-          color: "white",
-          padding: "12px 24px",
-          borderRadius: "8px",
-          fontFamily: "monospace",
-          fontSize: "14px",
-          zIndex: 1000,
-          textAlign: "center",
-        }}
-      >
-        <div style={{ color: "#aaa" }}>Click a pixel to select it</div>
-      </div>
+      <HUDPanel placement="bottom-center" background="dark" size="normal" style={{ textAlign: "center" }}>
+        <HUDLabel>Click a pixel to select it</HUDLabel>
+      </HUDPanel>
     );
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: "20px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "rgba(0, 0, 0, 0.9)",
-        color: "white",
-        padding: "20px",
-        borderRadius: "10px",
-        fontFamily: "monospace",
-        fontSize: "14px",
-        zIndex: 1000,
-        minWidth: "300px",
-        textAlign: "center",
-      }}
+    <HUDPanel
+      placement="bottom-center"
+      size="large"
+      style={{ minWidth: "500px", maxWidth: "600px", textAlign: "center" }}
     >
       {cooldownActive && (
-        <div
-          style={{
-            color: "#ff9900",
-            fontSize: "14px",
-            fontWeight: "bold",
-            marginBottom: "8px",
-            padding: "6px",
-            backgroundColor: "rgba(255, 153, 0, 0.2)",
-            borderRadius: "4px",
-          }}
-        >
-          Cooldown: {(cooldownTime / 10).toFixed(1)}s - Pre-selecting for next paint
-        </div>
+        <CooldownBanner>Cooldown: {(cooldownTime / 10).toFixed(1)}s - Pre-selecting for next paint</CooldownBanner>
       )}
-      <div style={{ color: "#ffff00", fontSize: "16px", fontWeight: "bold", marginBottom: "12px" }}>
-        Selected: ({selectedPixel.x}, {selectedPixel.y})
-      </div>
 
-      <div style={{ marginBottom: "12px" }}>
-        <div style={{ fontSize: "14px", marginBottom: "8px" }}>Choose color:</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(8, 1fr)",
-            gap: "6px",
-            marginBottom: "16px",
-            justifyContent: "center",
-            maxWidth: "280px",
-            margin: "0 auto 16px auto",
-          }}
-        >
-          {availableColorIds.map((colorId) => {
-            const hexColor = colorIdToHex(colorId);
-            if (!hexColor) return null;
+      <HUDSection>
+        <HUDValue style={{ color: "#ffff00", fontSize: theme.fontSize.lg, fontWeight: "bold" }}>
+          Selected: ({selectedPixel.x}, {selectedPixel.y})
+        </HUDValue>
+      </HUDSection>
 
-            return (
-              <div
-                key={colorId}
-                onClick={() => handleColorSelect(colorId)}
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  backgroundColor: hexColor,
-                  cursor: cooldownActive ? "not-allowed" : "pointer",
-                  border: selectedColorId === colorId ? "3px solid white" : "2px solid #666",
-                  borderRadius: "4px",
-                  transition: "border-color 0.2s",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: cooldownActive ? 0.5 : 1,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: "bold",
-                    color: colorId === 1 ? "#000" : "#fff",
-                    textShadow: colorId === 1 ? "none" : "0px 0px 3px rgba(0,0,0,1)",
-                  }}
+      <HUDGroup>
+        <HUDLabel style={{ fontSize: theme.fontSize.base, marginBottom: theme.spacing.sm }}>Choose color:</HUDLabel>
+        <ColorGrid>
+          <ColorRow itemCount={10}>
+            {availableColorIds.slice(0, 10).map((colorId) => {
+              const hexColor = colorIdToHex(colorId);
+              if (!hexColor) return null;
+
+              return (
+                <ColorSwatch
+                  key={colorId}
+                  color={hexColor}
+                  selected={selectedColorId === colorId}
+                  disabled={cooldownActive}
+                  colorId={colorId}
+                  onClick={() => handleColorSelect(colorId)}
                 >
-                  {colorId}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  <span>{colorId}</span>
+                </ColorSwatch>
+              );
+            })}
+          </ColorRow>
+          <ColorRow itemCount={9}>
+            {availableColorIds.slice(10).map((colorId) => {
+              const hexColor = colorIdToHex(colorId);
+              if (!hexColor) return null;
 
-      <button
-        onClick={handlePlacePixel}
-        disabled={cooldownActive}
-        style={{
-          padding: "12px 24px",
-          backgroundColor: cooldownActive ? "#666" : "#4CAF50",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          cursor: cooldownActive ? "not-allowed" : "pointer",
-          fontSize: "14px",
-          fontWeight: "bold",
-          transition: "background-color 0.2s",
-        }}
-      >
-        {cooldownActive ? `Wait ${(cooldownTime / 10).toFixed(1)}s` : "Paint Pixel"}
-      </button>
+              return (
+                <ColorSwatch
+                  key={colorId}
+                  color={hexColor}
+                  selected={selectedColorId === colorId}
+                  disabled={cooldownActive}
+                  colorId={colorId}
+                  onClick={() => handleColorSelect(colorId)}
+                >
+                  <span>{colorId}</span>
+                </ColorSwatch>
+              );
+            })}
+          </ColorRow>
+        </ColorGrid>
+      </HUDGroup>
 
-      <div style={{ marginTop: "12px", fontSize: "11px", color: "#888" }}>
-        <div>ESC: deselect • ENTER: paint</div>
-        <div style={{ marginTop: "4px", fontSize: "10px", color: "#666" }}>
-          SPACE: select pixel • Arrow keys: move cursor
-        </div>
-      </div>
-    </div>
+      <HUDGroup>
+        <Button variant="primary" size="large" onClick={handlePlacePixel} disabled={cooldownActive}>
+          {cooldownActive ? `Wait ${(cooldownTime / 10).toFixed(1)}s` : "Paint Pixel"}
+        </Button>
+      </HUDGroup>
+
+      <HelpText>
+        <div>ESC: deselect • ENTER: paint • Arrow keys: move cursor</div>
+      </HelpText>
+    </HUDPanel>
   );
 };
 

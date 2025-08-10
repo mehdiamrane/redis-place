@@ -1,15 +1,12 @@
 import { useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Canvas from "./Canvas";
-import InfoHUD from "./InfoHUD";
 import PlacementHUD from "./PlacementHUD";
 import UserProfile from "./UserProfile";
 import HeatmapOverlay from "./HeatmapOverlay";
-import HeatmapControls from "./HeatmapControls";
-import PixelInfoHUD from "./PixelInfoHUD";
 import LoadingScreen from "./LoadingScreen";
-import ConnectionStatus from "./ConnectionStatus";
 import NavigationHeader from "./NavigationHeader";
+import LeftSidebar from "./LeftSidebar";
 import { useAuthStore, useCanvasStore } from "../stores";
 import { buildApiUrl, API_ENDPOINTS, QUERY_PARAMS } from "../constants/api";
 
@@ -169,32 +166,26 @@ function CanvasPage() {
         maxIntensity={canvasStore.maxHeatmapIntensity}
       />
 
-      <InfoHUD
+      <LeftSidebar
         pixelX={canvasStore.hoveredPixel.x}
         pixelY={canvasStore.hoveredPixel.y}
         zoom={canvasStore.zoom}
         cursorPosition={canvasStore.cursorPosition}
-      />
-
-      <PixelInfoHUD selectedPixel={canvasStore.selectedPixel} />
-
-      <PlacementHUD />
-
-      <HeatmapControls
+        selectedPixel={canvasStore.selectedPixel}
         showHeatmap={canvasStore.showHeatmap}
         onToggleHeatmap={handleToggleHeatmap}
         timeRange={canvasStore.heatmapTimeRange}
         onTimeRangeChange={handleHeatmapTimeRangeChange}
         onRefreshData={handleHeatmapRefresh}
+        connectionStatus={canvasStore.connectionStatus}
       />
+
+      <PlacementHUD />
 
       {/* User Profile Modal */}
       {userProfileParam && authStore.isAuthenticated && (
         <UserProfile userId={`user:${userProfileParam}`} onClose={handleCloseUserProfile} />
       )}
-
-      {/* Connection Status HUD */}
-      <ConnectionStatus status={canvasStore.connectionStatus} />
     </div>
   );
 }

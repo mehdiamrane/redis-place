@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
+import styled from 'styled-components';
 import { colorIndexToHex } from '@redis-place/shared';
 import { getBadgeTitle, getBadgeEmoji, getBadgeColor } from '../utils/badge';
+import { Modal, Button, Card } from './ui';
+import { theme } from '../styles/theme';
 
 interface UserProfileData {
   profile: {
@@ -18,6 +21,152 @@ interface UserProfileProps {
   userId: string;
   onClose: () => void;
 }
+
+const ProfileGrid = styled.div`
+  display: grid;
+  gap: ${theme.spacing.md};
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${theme.spacing.md};
+`;
+
+const StatCard = styled(Card)`
+  text-align: center;
+`;
+
+const StatValue = styled.div`
+  font-size: ${theme.fontSize.xl};
+  font-weight: bold;
+  margin-bottom: ${theme.spacing.xs};
+`;
+
+const StatLabel = styled.div`
+  font-size: ${theme.fontSize.md};
+  color: ${theme.colors.lightGray};
+`;
+
+const ColorDisplay = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.sm};
+`;
+
+const ColorSwatch = styled.div<{ color: string }>`
+  width: 30px;
+  height: 30px;
+  background-color: ${props => props.color};
+  border-radius: ${theme.borderRadius.md};
+  border: 2px solid ${theme.colors.gray};
+`;
+
+const ColorUsageGrid = styled.div`
+  display: grid;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+`;
+
+const ColorUsageItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+`;
+
+const ColorUsageLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.sm};
+`;
+
+const SmallColorSwatch = styled.div<{ color: string }>`
+  width: 16px;
+  height: 16px;
+  background-color: ${props => props.color};
+  border-radius: ${theme.borderRadius.sm};
+  border: 1px solid ${theme.colors.gray};
+`;
+
+const BadgesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: ${theme.spacing.sm};
+  max-height: 150px;
+  overflow-y: auto;
+`;
+
+const Badge = styled.div<{ borderColor: string }>`
+  display: flex;
+  align-items: center;
+  padding: ${theme.spacing.sm};
+  background-color: ${theme.colors.cardBackground};
+  border-radius: 6px;
+  border: 2px solid ${props => props.borderColor};
+  gap: ${theme.spacing.sm};
+`;
+
+const BadgeIcon = styled.div<{ backgroundColor: string }>`
+  width: 24px;
+  height: 24px;
+  background-color: ${props => props.backgroundColor};
+  border-radius: ${theme.borderRadius.round};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: ${theme.fontSize.md};
+`;
+
+const BadgeInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const BadgeTitle = styled.div<{ color: string }>`
+  font-size: ${theme.fontSize.md};
+  font-weight: bold;
+  color: ${props => props.color};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const ActivityGrid = styled.div`
+  display: grid;
+  gap: ${theme.spacing.sm};
+  font-size: ${theme.fontSize.sm};
+`;
+
+const ActivityRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+`;
+
+const UserIdContainer = styled.div`
+  margin-bottom: ${theme.spacing.lg};
+  
+  h3 {
+    margin: 0 0 ${theme.spacing.sm} 0;
+  }
+`;
+
+const UserIdText = styled.div`
+  font-size: ${theme.fontSize.md};
+  color: ${theme.colors.lightGray};
+  font-family: monospace;
+`;
+
+const SectionTitle = styled.div`
+  font-size: ${theme.fontSize.base};
+  color: ${theme.colors.lightGray};
+  margin-bottom: ${theme.spacing.sm};
+`;
+
+const CenterContainer = styled.div`
+  text-align: center;
+`;
 
 function UserProfile({ userId, onClose }: UserProfileProps) {
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
@@ -68,351 +217,156 @@ function UserProfile({ userId, onClose }: UserProfileProps) {
 
   if (loading) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000
-      }}>
-        <div style={{
-          backgroundColor: '#2a2a2a',
-          padding: '40px',
-          borderRadius: '10px',
-          color: 'white'
-        }}>
-          <h2>Loading User Profile...</h2>
-        </div>
-      </div>
+      <Modal isOpen={true} onClose={onClose} title="Loading User Profile..." showCloseButton={false}>
+        <CenterContainer>
+          <p>Loading user profile...</p>
+        </CenterContainer>
+      </Modal>
     );
   }
 
   if (error) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000
-      }}>
-        <div style={{
-          backgroundColor: '#2a2a2a',
-          padding: '40px',
-          borderRadius: '10px',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          <h2>Error Loading Profile</h2>
+      <Modal isOpen={true} onClose={onClose} title="Error Loading Profile" showCloseButton={false}>
+        <CenterContainer>
           <p>{error}</p>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              marginTop: '20px'
-            }}
-          >
+          <Button variant="primary" onClick={onClose} style={{ marginTop: theme.spacing.lg }}>
             Close
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CenterContainer>
+      </Modal>
     );
   }
 
   if (!profileData?.profile) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000
-      }}>
-        <div style={{
-          backgroundColor: '#2a2a2a',
-          padding: '40px',
-          borderRadius: '10px',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          <h2>User Not Found</h2>
+      <Modal isOpen={true} onClose={onClose} title="User Not Found" showCloseButton={false}>
+        <CenterContainer>
           <p>This user hasn't placed any pixels yet.</p>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              marginTop: '20px'
-            }}
-          >
+          <Button variant="primary" onClick={onClose} style={{ marginTop: theme.spacing.lg }}>
             Close
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CenterContainer>
+      </Modal>
     );
   }
 
   const { profile, rank } = profileData;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000,
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: '#2a2a2a',
-        padding: '30px',
-        borderRadius: '10px',
-        color: 'white',
-        minWidth: '400px',
-        maxWidth: '500px',
-        maxHeight: '80vh',
-        overflow: 'auto'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2>👤 User Profile</h2>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '5px 10px',
-              backgroundColor: '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              cursor: 'pointer'
-            }}
-          >
-            ✕
-          </button>
-        </div>
+    <Modal 
+      isOpen={true} 
+      onClose={onClose} 
+      title="👤 User Profile"
+      maxWidth="500px"
+    >
+      <UserIdContainer>
+        <h3>{formatUserId(userId)}</h3>
+        <UserIdText>ID: {userId}</UserIdText>
+      </UserIdContainer>
 
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>{formatUserId(userId)}</h3>
-          <div style={{ fontSize: '12px', color: '#888', fontFamily: 'monospace' }}>
-            ID: {userId}
-          </div>
-        </div>
+      <ProfileGrid>
+        {/* Stats Grid */}
+        <StatsGrid>
+          <StatCard variant="darker" padding="medium">
+            <StatValue>{profile.pixelsPlaced.toLocaleString()}</StatValue>
+            <StatLabel>Pixels Placed</StatLabel>
+          </StatCard>
+          
+          <StatCard variant="darker" padding="medium">
+            <StatValue>{rank ? `#${rank}` : 'Unranked'}</StatValue>
+            <StatLabel>Global Rank</StatLabel>
+          </StatCard>
+        </StatsGrid>
 
-        <div style={{ display: 'grid', gap: '15px' }}>
-          {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-                {profile.pixelsPlaced.toLocaleString()}
-              </div>
-              <div style={{ fontSize: '12px', color: '#888' }}>Pixels Placed</div>
-            </div>
-            
-            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-                {rank ? `#${rank}` : 'Unranked'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#888' }}>Global Rank</div>
-            </div>
-          </div>
+        {/* Favorite Color */}
+        {profile.favoriteColor !== null && (
+          <Card variant="darker" padding="medium">
+            <SectionTitle>Favorite Color</SectionTitle>
+            <ColorDisplay>
+              <ColorSwatch color={colorIndexToHex(profile.favoriteColor) || 'transparent'} />
+              <span style={{ fontWeight: 'bold' }}>
+                {colorIndexToHex(profile.favoriteColor)}
+              </span>
+            </ColorDisplay>
+          </Card>
+        )}
 
-          {/* Favorite Color */}
-          {profile.favoriteColor !== null && (
-            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '14px', color: '#888', marginBottom: '8px' }}>Favorite Color</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '30px',
-                    height: '30px',
-                    backgroundColor: colorIndexToHex(profile.favoriteColor),
-                    borderRadius: '5px',
-                    border: '2px solid #666'
-                  }}
-                />
-                <span style={{ fontWeight: 'bold' }}>
-                  {colorIndexToHex(profile.favoriteColor)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Color Usage Breakdown */}
-          {profile.colorUsage && profile.colorUsage.length > 0 && (
-            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '14px', color: '#888', marginBottom: '10px' }}>Color Usage Breakdown</div>
-              <div style={{ display: 'grid', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
-                {profile.colorUsage.map((usage, index) => (
-                  <div
-                    key={usage.color}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '4px 0'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div
-                        style={{
-                          width: '16px',
-                          height: '16px',
-                          backgroundColor: colorIndexToHex(usage.color),
-                          borderRadius: '3px',
-                          border: '1px solid #666'
-                        }}
-                      />
-                      <span style={{ fontSize: '13px' }}>
-                        {colorIndexToHex(usage.color)}
-                        {index === 0 && ' ⭐'}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '13px', color: '#bbb' }}>
-                      {usage.count} pixel{usage.count !== 1 ? 's' : ''}
+        {/* Color Usage Breakdown */}
+        {profile.colorUsage && profile.colorUsage.length > 0 && (
+          <Card variant="darker" padding="medium">
+            <SectionTitle>Color Usage Breakdown</SectionTitle>
+            <ColorUsageGrid>
+              {profile.colorUsage.map((usage, index) => (
+                <ColorUsageItem key={usage.color}>
+                  <ColorUsageLeft>
+                    <SmallColorSwatch color={colorIndexToHex(usage.color) || 'transparent'} />
+                    <span style={{ fontSize: theme.fontSize.sm }}>
+                      {colorIndexToHex(usage.color)}
+                      {index === 0 && ' ⭐'}
                     </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  </ColorUsageLeft>
+                  <span style={{ fontSize: theme.fontSize.sm, color: theme.colors.lighterGray }}>
+                    {usage.count} pixel{usage.count !== 1 ? 's' : ''}
+                  </span>
+                </ColorUsageItem>
+              ))}
+            </ColorUsageGrid>
+          </Card>
+        )}
 
-          {/* Badges */}
-          {profile.badges && profile.badges.length > 0 && (
-            <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '14px', color: '#888', marginBottom: '10px' }}>
-                Badges ({profile.badges.length})
-              </div>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-                gap: '8px',
-                maxHeight: '150px', 
-                overflowY: 'auto' 
-              }}>
-                {profile.badges.map((badgeId) => (
-                  <div
-                    key={badgeId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px',
-                      backgroundColor: '#2a2a2a',
-                      borderRadius: '6px',
-                      border: `2px solid ${getBadgeColor(badgeId)}`,
-                      gap: '8px'
-                    }}
-                  >
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      backgroundColor: getBadgeColor(badgeId),
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px'
-                    }}>
-                      {getBadgeEmoji(badgeId)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ 
-                        fontSize: '12px', 
-                        fontWeight: 'bold',
-                        color: getBadgeColor(badgeId),
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {getBadgeTitle(badgeId)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ 
-                marginTop: '10px',
-                textAlign: 'center'
-              }}>
-                <button
-                  onClick={() => window.location.hash = 'badges'}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#9C27B0',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  View All Badges
-                </button>
-              </div>
-            </div>
-          )}
+        {/* Badges */}
+        {profile.badges && profile.badges.length > 0 && (
+          <Card variant="darker" padding="medium">
+            <SectionTitle>Badges ({profile.badges.length})</SectionTitle>
+            <BadgesGrid>
+              {profile.badges.map((badgeId) => (
+                <Badge key={badgeId} borderColor={getBadgeColor(badgeId)}>
+                  <BadgeIcon backgroundColor={getBadgeColor(badgeId)}>
+                    {getBadgeEmoji(badgeId)}
+                  </BadgeIcon>
+                  <BadgeInfo>
+                    <BadgeTitle color={getBadgeColor(badgeId)}>
+                      {getBadgeTitle(badgeId)}
+                    </BadgeTitle>
+                  </BadgeInfo>
+                </Badge>
+              ))}
+            </BadgesGrid>
+            <CenterContainer style={{ marginTop: theme.spacing.sm }}>
+              <Button
+                variant="purple"
+                size="small"
+                onClick={() => window.location.hash = 'badges'}
+              >
+                View All Badges
+              </Button>
+            </CenterContainer>
+          </Card>
+        )}
 
-          {/* Activity Times */}
-          <div style={{ backgroundColor: '#3a3a3a', padding: '15px', borderRadius: '8px' }}>
-            <div style={{ fontSize: '14px', color: '#888', marginBottom: '10px' }}>Activity</div>
-            <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>First Pixel:</span>
-                <span style={{ color: '#bbb' }}>{formatDate(profile.firstPixelTime)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Last Pixel:</span>
-                <span style={{ color: '#bbb' }}>{getTimeSince(profile.lastPixelTime)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Activity Times */}
+        <Card variant="darker" padding="medium">
+          <SectionTitle>Activity</SectionTitle>
+          <ActivityGrid>
+            <ActivityRow>
+              <span>First Pixel:</span>
+              <span style={{ color: theme.colors.lighterGray }}>{formatDate(profile.firstPixelTime)}</span>
+            </ActivityRow>
+            <ActivityRow>
+              <span>Last Pixel:</span>
+              <span style={{ color: theme.colors.lighterGray }}>{getTimeSince(profile.lastPixelTime)}</span>
+            </ActivityRow>
+          </ActivityGrid>
+        </Card>
+      </ProfileGrid>
 
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 30px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Close Profile
-          </button>
-        </div>
-      </div>
-    </div>
+      <CenterContainer style={{ marginTop: theme.spacing.lg }}>
+        <Button variant="primary" onClick={onClose}>
+          Close Profile
+        </Button>
+      </CenterContainer>
+    </Modal>
   );
 }
 

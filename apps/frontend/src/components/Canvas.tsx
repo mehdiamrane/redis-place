@@ -232,35 +232,48 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.max(0.1, Math.min(50, zoom * delta));
     
-    // Update zoom
-    setZoom(newZoom);
-    onZoomChange(newZoom);
+    // Determine zoom center priority: selected pixel > hovered pixel > cursor position
+    let zoomCenterX, zoomCenterY;
     
-    // Constrain pan with the new zoom level
-    const canvas = canvasRef.current;
-    if (canvas) {
-      setPan(prev => {
-        const canvasPixelWidth = width * pixelSize * newZoom;
-        const canvasPixelHeight = height * pixelSize * newZoom;
-        
-        const minVisibleArea = 100;
-        const maxPanX = canvas.width - minVisibleArea;
-        const minPanX = -canvasPixelWidth + minVisibleArea;
-        const maxPanY = canvas.height - minVisibleArea;
-        const minPanY = -canvasPixelHeight + minVisibleArea;
-
-        const newPan = {
-          x: Math.max(minPanX, Math.min(maxPanX, prev.x)),
-          y: Math.max(minPanY, Math.min(maxPanY, prev.y))
-        };
-        onPanChange(newPan);
-        return newPan;
-      });
+    if (selectedPixel) {
+      // Center on selected pixel
+      zoomCenterX = (selectedPixel.x + 0.5) * pixelSize * zoom + pan.x;
+      zoomCenterY = (selectedPixel.y + 0.5) * pixelSize * zoom + pan.y;
+    } else if (hoveredPixel) {
+      // Center on hovered pixel
+      zoomCenterX = (hoveredPixel.x + 0.5) * pixelSize * zoom + pan.x;
+      zoomCenterY = (hoveredPixel.y + 0.5) * pixelSize * zoom + pan.y;
+    } else {
+      // Center on cursor position
+      const rect = canvas.getBoundingClientRect();
+      zoomCenterX = e.clientX - rect.left;
+      zoomCenterY = e.clientY - rect.top;
     }
-  }, [zoom, onZoomChange, onPanChange, width, height, pixelSize]);
+
+    // Calculate world position at zoom center before zoom
+    const worldX = (zoomCenterX - pan.x) / zoom;
+    const worldY = (zoomCenterY - pan.y) / zoom;
+
+    // Calculate new pan to keep the same world position at the zoom center
+    const newPan = {
+      x: zoomCenterX - worldX * newZoom,
+      y: zoomCenterY - worldY * newZoom
+    };
+
+    // Constrain the new pan to valid bounds
+    const constrainedPan = constrainPan(newPan);
+    
+    setZoom(newZoom);
+    setPan(constrainedPan);
+    onZoomChange(newZoom);
+    onPanChange(constrainedPan);
+  }, [zoom, pan, selectedPixel, hoveredPixel, onZoomChange, onPanChange, constrainPan, pixelSize]);
 
   useEffect(() => {
     const resizeCanvas = () => {

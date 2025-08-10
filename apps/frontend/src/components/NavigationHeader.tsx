@@ -1,6 +1,43 @@
 import React from "react";
+import styled from "styled-components";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../stores";
+import { HUDPanel, HUDSection, HUDGroup, Button } from "./ui";
+import { theme } from "../styles/theme";
+
+const NavigationContainer = styled.div`
+  position: absolute;
+  top: ${theme.spacing.md};
+  right: ${theme.spacing.md};
+  z-index: ${theme.zIndex.nav};
+`;
+
+const NavButton = styled(Button)<{ isActive: boolean }>`
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+  cursor: ${(props) => (props.isActive ? "default" : "pointer")};
+`;
+
+const ButtonGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${theme.spacing.xs};
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  gap: ${theme.spacing.xs};
+`;
+
+const UserInfo = styled.div`
+  color: ${theme.colors.white};
+  font-weight: bold;
+  font-size: ${theme.fontSize.sm};
+  text-align: center;
+  padding: ${theme.spacing.xs};
+  opacity: 0.8;
+`;
 
 const NavigationHeader: React.FC = () => {
   const { isAuthenticated, username, logout, showModal } = useAuthStore();
@@ -9,7 +46,9 @@ const NavigationHeader: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleNavigation = (route: string) => {
-    navigate(route);
+    if (location.pathname !== route) {
+      navigate(route);
+    }
   };
 
   const handleShowProfile = () => {
@@ -23,172 +62,71 @@ const NavigationHeader: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "20px",
-        right: "20px",
-        zIndex: 1000,
-        display: "flex",
-        gap: "10px",
-      }}
-    >
-      {isAuthenticated ? (
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <span
-            style={{
-              color: "#333",
-              fontWeight: "bold",
-              background: "rgba(255, 255, 255, 0.9)",
-              padding: "6px 10px",
-              borderRadius: "4px",
-            }}
-          >
-            👋 {username}
-          </span>
-          <button
-            onClick={handleShowProfile}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "14px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              transition: "background-color 0.3s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#0056b3")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#007bff")}
-          >
-            👤 Profile
-          </button>
-          <button
-            onClick={logout}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#dc3545",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "14px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              transition: "background-color 0.3s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#c82333")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#dc3545")}
-          >
-            🚪 Logout
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={handleSignInClick}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontSize: "14px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            transition: "background-color 0.3s",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#0056b3")}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#007bff")}
-        >
-          🔑 Sign In
-        </button>
-      )}
+    <NavigationContainer>
+      <HUDPanel position="relative" title="🧭 Navigation" style={{ width: "250px" }}>
+        {/* Navigation Links */}
+        <HUDSection>
+          <ButtonGrid>
+            <NavButton
+              variant={location.pathname === "/" ? "success" : "gray"}
+              size="small"
+              onClick={() => handleNavigation("/")}
+              isActive={location.pathname === "/"}
+            >
+              🎨 Canvas
+            </NavButton>
 
-      <button
-        onClick={() => handleNavigation("/")}
-        style={{
-          padding: "8px 16px",
-          backgroundColor: location.pathname === "/" ? "#495057" : "#17a2b8",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          transition: "background-color 0.3s",
-        }}
-        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = location.pathname === "/" ? "#495057" : "#138496")}
-        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = location.pathname === "/" ? "#495057" : "#17a2b8")}
-      >
-        🎨 Canvas
-      </button>
-      <button
-        onClick={() => handleNavigation("/badges")}
-        style={{
-          padding: "8px 16px",
-          backgroundColor: location.pathname === "/badges" ? "#495057" : "#6f42c1",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          transition: "background-color 0.3s",
-        }}
-        onMouseOver={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/badges" ? "#495057" : "#5a32a3")
-        }
-        onMouseOut={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/badges" ? "#495057" : "#6f42c1")
-        }
-      >
-        🏆 Badges
-      </button>
-      <button
-        onClick={() => handleNavigation("/analytics")}
-        style={{
-          padding: "8px 16px",
-          backgroundColor: location.pathname === "/analytics" ? "#495057" : "#28a745",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          transition: "background-color 0.3s",
-        }}
-        onMouseOver={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/analytics" ? "#495057" : "#218838")
-        }
-        onMouseOut={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/analytics" ? "#495057" : "#28a745")
-        }
-      >
-        📊 Analytics
-      </button>
-      <button
-        onClick={() => handleNavigation("/replay")}
-        style={{
-          padding: "8px 16px",
-          backgroundColor: location.pathname === "/replay" ? "#495057" : "#fd7e14",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          transition: "background-color 0.3s",
-        }}
-        onMouseOver={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/replay" ? "#495057" : "#e8650e")
-        }
-        onMouseOut={(e) =>
-          (e.currentTarget.style.backgroundColor = location.pathname === "/replay" ? "#495057" : "#fd7e14")
-        }
-      >
-        🎬 Replay
-      </button>
-    </div>
+            <NavButton
+              variant={location.pathname === "/badges" ? "success" : "gray"}
+              size="small"
+              onClick={() => handleNavigation("/badges")}
+              isActive={location.pathname === "/badges"}
+            >
+              🏆 Badges
+            </NavButton>
+
+            <NavButton
+              variant={location.pathname === "/analytics" ? "success" : "gray"}
+              size="small"
+              onClick={() => handleNavigation("/analytics")}
+              isActive={location.pathname === "/analytics"}
+            >
+              📊 Analytics
+            </NavButton>
+
+            <NavButton
+              variant={location.pathname === "/replay" ? "success" : "gray"}
+              size="small"
+              onClick={() => handleNavigation("/replay")}
+              isActive={location.pathname === "/replay"}
+            >
+              🎬 Replay
+            </NavButton>
+          </ButtonGrid>
+        </HUDSection>
+
+        {/* User Section */}
+        <HUDSection>
+          {isAuthenticated ? (
+            <HUDGroup>
+              <UserInfo>Logged in as {username}</UserInfo>
+              <ButtonRow>
+                <Button variant="gray" size="small" onClick={handleShowProfile} style={{ flex: 1 }}>
+                  👤 Profile
+                </Button>
+                <Button variant="danger" size="small" onClick={logout} style={{ flex: 1 }}>
+                  🚪 Logout
+                </Button>
+              </ButtonRow>
+            </HUDGroup>
+          ) : (
+            <Button variant="gray" size="small" onClick={handleSignInClick} style={{ width: "100%" }}>
+              🔑 Sign In
+            </Button>
+          )}
+        </HUDSection>
+      </HUDPanel>
+    </NavigationContainer>
   );
 };
 

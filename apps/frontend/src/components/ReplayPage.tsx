@@ -1,11 +1,36 @@
 import React, { useState, useEffect, useCallback } from "react";
+import styled from "styled-components";
 import ReplayCanvas from "./ReplayCanvas";
 import ReplayTimeline from "./ReplayTimeline";
 import ReplayControls from "./ReplayControls";
+import ReplayControlsContainer from "./ReplayControlsContainer";
 import ReplayInfo from "./ReplayInfo";
 import ReplayNoEventsMessage from "./ReplayNoEventsMessage";
 import NavigationHeader from "./NavigationHeader";
+import { HUDPanel } from "./ui";
+import { theme } from "../styles/theme";
 import { colorIdToHex } from "@redis-place/shared";
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: ${theme.zIndex.modal};
+`;
+
+const LoadingContent = styled.div`
+  text-align: center;
+  color: ${theme.colors.white};
+  font-size: ${theme.fontSize.lg};
+  font-weight: bold;
+`;
+
+const LoadingSubtext = styled.div`
+  font-size: ${theme.fontSize.sm};
+  color: ${theme.colors.lightGray};
+  margin-top: ${theme.spacing.xs};
+`;
 
 interface ReplayEvent {
   id: string;
@@ -52,6 +77,9 @@ const ReplayPage: React.FC = () => {
       const startTime = startDate.getTime();
       const endTime = endDate.getTime();
 
+      // Ensure loading state is visible for at least 1 second
+      const loadingStartTime = Date.now();
+
       const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/api/replay?start=${startTime}&end=${endTime}`);
 
       if (!response.ok) {
@@ -60,6 +88,13 @@ const ReplayPage: React.FC = () => {
       }
 
       const data = await response.json();
+      
+      // Calculate remaining time to show loading for at least 1 second
+      const loadingDuration = Date.now() - loadingStartTime;
+      const remainingTime = Math.max(0, 1000 - loadingDuration);
+      
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+      
       setEvents(data.events || []);
       setCurrentEventIndex(0);
       setDisplayedPixels([]);
@@ -172,25 +207,6 @@ const ReplayPage: React.FC = () => {
     loadEvents(start, end);
   }, [loadEvents, startDate, endDate]);
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          fontSize: "18px",
-          color: "#333",
-        }}
-      >
-        <div>
-          <div style={{ marginBottom: "10px" }}>🔄 Loading replay data...</div>
-          <div style={{ fontSize: "14px", color: "#666" }}>This might take a moment for large datasets</div>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -230,25 +246,7 @@ const ReplayPage: React.FC = () => {
 
   // Only show "no data" message if we tried to load events but got none
   const hasTriedLoading = startDate && endDate && !loading;
-  if (events.length === 0 && hasTriedLoading && !error) {
-    return (
-      <div
-        style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "white" }}
-      >
-        <NavigationHeader />
-        <ReplayControls
-          startDate={startDate}
-          endDate={endDate}
-          loading={loading}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          onLoadEvents={handleLoadEvents}
-          formatDateForInput={formatDateForInput}
-        />
-        <ReplayNoEventsMessage />
-      </div>
-    );
-  }
+  const showNoEventsMessage = events.length === 0 && hasTriedLoading && !error;
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
@@ -256,20 +254,40 @@ const ReplayPage: React.FC = () => {
 
       <ReplayInfo events={events} displayedPixels={displayedPixels} />
 
-      <ReplayControls
-        startDate={startDate}
-        endDate={endDate}
-        loading={loading}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
-        onLoadEvents={handleLoadEvents}
-        formatDateForInput={formatDateForInput}
-      />
+      {events.length > 0 && !loading && (
+        <ReplayCanvas 
+          width={1000} 
+          height={1000} 
+          placedPixels={displayedPixels}
+          currentEvent={events[currentEventIndex]}
+          autoCenterOnPixel={true}
+        />
+      )}
 
-      {events.length > 0 && (
-        <>
-          <ReplayCanvas width={1000} height={1000} placedPixels={displayedPixels} />
+      {showNoEventsMessage && <ReplayNoEventsMessage />}
 
+      {loading && (
+        <LoadingOverlay>
+          <HUDPanel position="relative">
+            <LoadingContent>🔄 Loading replay data...</LoadingContent>
+            <LoadingSubtext>This might take a moment for large datasets</LoadingSubtext>
+          </HUDPanel>
+        </LoadingOverlay>
+      )}
+
+      <ReplayControlsContainer>
+        <ReplayControls
+          startDate={startDate}
+          endDate={endDate}
+          loading={loading}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onLoadEvents={handleLoadEvents}
+          onLoadEventsWithDates={loadEvents}
+          formatDateForInput={formatDateForInput}
+        />
+
+        {events.length > 0 && (
           <ReplayTimeline
             events={events}
             currentEventIndex={currentEventIndex}
@@ -280,8 +298,8 @@ const ReplayPage: React.FC = () => {
             onPlaybackSpeedChange={setPlaybackSpeed}
             onReset={handleReset}
           />
-        </>
-      )}
+        )}
+      </ReplayControlsContainer>
     </div>
   );
 };

@@ -1,4 +1,7 @@
 import React from "react";
+import styled from "styled-components";
+import { HUDPanel, HUDRow, HUDLabel, HUDValue, HUDSection } from "./ui";
+import { theme } from "../styles/theme";
 
 interface ReplayEvent {
   id: string;
@@ -21,34 +24,46 @@ interface ReplayInfoProps {
   displayedPixels: PlacedPixel[];
 }
 
+const InfoContainer = styled.div`
+  position: fixed;
+  top: ${theme.spacing.md};
+  left: ${theme.spacing.md};
+  z-index: ${theme.zIndex.nav};
+`;
+
+const DateRange = styled.div`
+  font-size: ${theme.fontSize.xs};
+  color: ${theme.colors.lightGray};
+  text-align: center;
+`;
+
 const ReplayInfo: React.FC<ReplayInfoProps> = ({ events, displayedPixels }) => {
   if (events.length === 0) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "20px",
-        left: "20px",
-        zIndex: 1000,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
-        color: "white",
-        padding: "10px 15px",
-        borderRadius: "5px",
-        fontSize: "14px",
-        fontFamily: "monospace",
-      }}
-    >
-      <div style={{ fontWeight: "bold", marginBottom: "5px" }}>🎬 Canvas Replay</div>
-      <div>Events: {events.length}</div>
-      <div>Pixels: {displayedPixels.length}</div>
-      {events[0] && events[events.length - 1] && (
-        <div style={{ fontSize: "12px", marginTop: "5px", color: "#ccc" }}>
-          {new Date(events[0].timestamp).toLocaleDateString()} -{" "}
-          {new Date(events[events.length - 1].timestamp).toLocaleDateString()}
-        </div>
-      )}
-    </div>
+    <InfoContainer>
+      <HUDPanel
+        position="relative"
+        title="🎬 Canvas Replay"
+      >
+        <HUDRow>
+          <HUDLabel>Events:</HUDLabel>
+          <HUDValue>{events.length}</HUDValue>
+        </HUDRow>
+        <HUDRow>
+          <HUDLabel>Pixels:</HUDLabel>
+          <HUDValue>{displayedPixels.length}</HUDValue>
+        </HUDRow>
+        {events[0] && events[events.length - 1] && (
+          <HUDSection>
+            <DateRange>
+              {new Date(events[0].timestamp).toLocaleDateString()} -{" "}
+              {new Date(events[events.length - 1].timestamp).toLocaleDateString()}
+            </DateRange>
+          </HUDSection>
+        )}
+      </HUDPanel>
+    </InfoContainer>
   );
 };
 
