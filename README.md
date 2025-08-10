@@ -10,7 +10,7 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 - **Real-time Collaboration**: See other users' pixel placements in real-time via WebSocket
 - **Advanced Color System**: 20 distinct colors with explicit ID mapping (ID 0 reserved for empty pixels)
 - **Cooldown System**: 1-second cooldown between pixel placements
-- **Keyboard Navigation**: Arrow keys for cursor movement, SPACE to select pixels, ENTER to paint
+- **Keyboard Navigation**: Arrow keys for cursor movement, ENTER to paint
 - **Click-to-Select Interface**: Simple color picker
 
 ### Analytics Dashboard
@@ -286,7 +286,6 @@ const redisSubscriber = new Redis({
 ### Canvas Navigation
 
 - **Mouse**: Click to select pixels, pick a color and click paint to place
-- **SPACE**: Select pixel under cursor
 - **Arrow Keys**: Move cursor around canvas
 - **Click Color Buttons**: Select from 20 available colors (numbered 1-20)
 - **Enter**: Place pixel with selected color

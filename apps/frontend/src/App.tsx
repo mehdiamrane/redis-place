@@ -196,13 +196,13 @@ function App() {
   // Handle global keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle arrow keys and Space for navigation (not when typing in color picker)
-      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      // Only handle arrow keys for navigation
+      if (!e.key.startsWith('Arrow')) {
         return;
       }
 
       // Arrow key navigation (when cursor position is active)
-      if (e.key.startsWith('Arrow') && cursorPosition) {
+      if (cursorPosition) {
         e.preventDefault();
         
         setCursorPosition(prev => {
@@ -230,12 +230,6 @@ function App() {
           setSelectedPixel(newPos);
           return newPos;
         });
-      }
-      
-      // Space bar for pixel selection (allowed even during cooldown, but needs active cursor)
-      if (e.key === ' ' && cursorPosition) {
-        e.preventDefault();
-        setSelectedPixel({ x: cursorPosition.x, y: cursorPosition.y });
       }
     };
 

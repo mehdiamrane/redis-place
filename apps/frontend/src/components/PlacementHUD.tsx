@@ -128,7 +128,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
         textAlign: 'center'
       }}>
         <div style={{ color: '#aaa' }}>
-          Click pixel or use SPACE to select
+          Click a pixel to select it
         </div>
       </div>
     );
