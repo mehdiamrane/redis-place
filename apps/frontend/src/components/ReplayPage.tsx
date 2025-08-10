@@ -24,11 +24,21 @@ const ReplayPage: React.FC = () => {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [displayedPixels, setDisplayedPixels] = useState<PlacedPixel[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(2);
+  const [playbackSpeed, setPlaybackSpeed] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Helper function to format date for datetime-local input (in local timezone)
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
 
   // Load replay events from API
   const loadEvents = useCallback(async (startDate: Date, endDate: Date) => {
@@ -57,14 +67,17 @@ const ReplayPage: React.FC = () => {
     }
   }, []);
 
-  // Set default date range (last 24 hours)
+  // Set default date range (last 24 hours) and auto-load data
   useEffect(() => {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
-    setStartDate(yesterday.toISOString().slice(0, 16)); // YYYY-MM-DDTHH:MM format
-    setEndDate(now.toISOString().slice(0, 16));
-  }, []);
+    setStartDate(formatDateForInput(yesterday));
+    setEndDate(formatDateForInput(now));
+    
+    // Auto-load the last 24 hours of data
+    loadEvents(yesterday, now);
+  }, [loadEvents]);
 
   // Update displayed pixels when current event index changes
   useEffect(() => {
@@ -312,8 +325,8 @@ const ReplayPage: React.FC = () => {
                 onClick={() => {
                   const now = new Date();
                   const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
-                  setStartDate(start.toISOString().slice(0, 16));
-                  setEndDate(now.toISOString().slice(0, 16));
+                  setStartDate(formatDateForInput(start));
+                  setEndDate(formatDateForInput(now));
                 }}
                 style={{
                   padding: '3px 6px',
@@ -483,8 +496,8 @@ const ReplayPage: React.FC = () => {
               onClick={() => {
                 const now = new Date();
                 const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
-                setStartDate(start.toISOString().slice(0, 16));
-                setEndDate(now.toISOString().slice(0, 16));
+                setStartDate(formatDateForInput(start));
+                setEndDate(formatDateForInput(now));
               }}
               style={{
                 padding: '3px 6px',
