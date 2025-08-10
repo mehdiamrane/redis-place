@@ -9,7 +9,7 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 - **Interactive Canvas**: 1000x1000 pixel canvas with zoom and pan functionality
 - **Real-time Collaboration**: See other users' pixel placements in real-time via WebSocket
 - **Advanced Color System**: 20 distinct colors with explicit ID mapping (ID 0 reserved for empty pixels)
-- **Cooldown System**: 5-second cooldown between pixel placements
+- **Cooldown System**: 1-second cooldown between pixel placements
 - **Keyboard Navigation**: Arrow keys for cursor movement, SPACE to select pixels, ENTER to paint
 - **Click-to-Select Interface**: Simple color picker
 

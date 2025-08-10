@@ -73,7 +73,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     if (hexColor) {
       onPlacePixel(hexColor);
       setCooldownActive(true);
-      setCooldownTime(50); // 5 seconds at 100ms intervals
+      setCooldownTime(10); // 1 second at 100ms intervals
       onCooldownChange(true);
     }
   };
