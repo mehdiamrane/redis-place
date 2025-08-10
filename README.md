@@ -8,6 +8,7 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 
 - **Interactive Canvas**: 1000x1000 pixel canvas with zoom and pan functionality
 - **Real-time Collaboration**: See other users' pixel placements in real-time via WebSocket
+- **Connection Status System**: Dynamic connection monitoring with visual indicators and graceful error handling
 - **Advanced Color System**: 20 distinct colors with explicit ID mapping (ID 0 reserved for empty pixels)
 - **Cooldown System**: 1-second cooldown between pixel placements
 - **Keyboard Navigation**: Arrow keys for cursor movement, ENTER to paint
@@ -308,6 +309,16 @@ const redisSubscriber = new Redis({
 - **Sparse Loading**: Only load pixels that have been placed (filters out empty pixels)
 - **Performance Improvement**: 80% faster loading (20s → 4s first load, instant cached loads)
 - **Real-time Pub/Sub**: Instant updates without polling
+
+### Connection Management
+
+- **WebSocket Status Monitoring**: Real-time connection state tracking with visual indicators
+- **Connection Timeout Protection**: 10-second timeout prevents infinite connecting states when backend is down
+- **Dynamic Loading States**: Context-aware loading messages (connecting vs loading snapshot)
+- **Graceful Error Handling**: Distinct UI states for connection timeout vs disconnection
+- **Connection Status HUD**: Bottom-left indicator showing real-time WebSocket status (connected/connecting/disconnected)
+- **Minimum Display Time**: Loading screens show for at least 1 second to prevent jarring quick flashes
+- **Auto-Recovery UI**: Clear disconnection screens with refresh options for reconnection
 
 ### Analytics Performance
 

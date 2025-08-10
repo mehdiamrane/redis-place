@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Canvas from './components/Canvas'
 import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
@@ -41,6 +41,10 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [isCanvasLoading, setIsCanvasLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [loadingMessage, setLoadingMessage] = useState('Connecting to backend...');
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingStartTimeRef = useRef<number>(Date.now());
 
   // Simple routing based on URL hash
   useEffect(() => {
@@ -80,7 +84,42 @@ function App() {
 
     checkAuth();
 
-    socketService.connect();
+    // Set up connection status handler
+    socketService.onConnectionStatusChange((status) => {
+      setConnectionStatus(status);
+      
+      if (status === 'connecting') {
+        setLoadingMessage('Connecting to backend...');
+        setIsCanvasLoading(true);
+        loadingStartTimeRef.current = Date.now(); // Reset timer for new loading cycle
+        
+        // Set connection timeout (10 seconds)
+        const timeout = setTimeout(() => {
+          console.log('Connection timeout - backend may be down');
+          setConnectionStatus('disconnected');
+          setLoadingMessage('Connection timeout');
+          setIsCanvasLoading(false);
+        }, 10000);
+        connectionTimeoutRef.current = timeout;
+        
+      } else if (status === 'connected') {
+        // Clear timeout when connected
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        // Start loading canvas when connected
+        loadInitialCanvas();
+      } else if (status === 'disconnected') {
+        // Clear timeout when disconnected
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        setIsCanvasLoading(false);
+        setLoadingMessage('Connection lost...');
+      }
+    });
 
     // Set up authentication required handler
     socketService.onAuthRequired((message) => {
@@ -90,17 +129,28 @@ function App() {
 
     const loadInitialCanvas = async () => {
       try {
-        setIsCanvasLoading(true);
+        setLoadingMessage('Loading canvas snapshot...');
         const pixels = await socketService.loadCanvas();
         setPlacedPixels(pixels);
       } catch (error) {
         console.error('Error loading canvas:', error);
+        setLoadingMessage('Failed to load canvas');
       } finally {
-        setIsCanvasLoading(false);
+        // Ensure loading screen shows for at least 1 second
+        const elapsedTime = Date.now() - loadingStartTimeRef.current;
+        const minDisplayTime = 1000; // 1 second
+        
+        if (elapsedTime < minDisplayTime) {
+          setTimeout(() => {
+            setIsCanvasLoading(false);
+          }, minDisplayTime - elapsedTime);
+        } else {
+          setIsCanvasLoading(false);
+        }
       }
     };
 
-    loadInitialCanvas();
+    socketService.connect();
 
     socketService.onPixelUpdate((data) => {
       const newPixel: PlacedPixel = {
@@ -117,8 +167,13 @@ function App() {
     });
 
     return () => {
+      // Clean up timeout
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
       socketService.disconnect();
       socketService.removeAuthRequiredCallback();
+      socketService.removeConnectionStatusCallback();
     };
   }, []);
 
@@ -357,7 +412,7 @@ function App() {
             textAlign: 'center',
             maxWidth: '500px'
           }}>
-            Reading 1 million pixels from Redis bitfield
+            {loadingMessage}
           </p>
           <p style={{ 
             margin: '0',
@@ -365,10 +420,82 @@ function App() {
             color: '#666',
             textAlign: 'center'
           }}>
-            This may take a few seconds on first load...
+            {connectionStatus === 'connecting' ? 'Establishing connection...' : 'This may take a few seconds...'}
           </p>
         </div>
       )}
+
+      {/* Disconnection Screen */}
+      {connectionStatus === 'disconnected' && !isCanvasLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#1a1a1a',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          color: 'white',
+          fontFamily: 'Arial, sans-serif'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '20px'
+          }}>
+            ⚠️
+          </div>
+          <h2 style={{ 
+            margin: '0 0 20px 0',
+            fontSize: '24px',
+            fontWeight: 'normal'
+          }}>
+            {loadingMessage === 'Connection timeout' ? 'Connection Timeout' : 'Connection Lost'}
+          </h2>
+          <p style={{ 
+            margin: '0 0 10px 0',
+            fontSize: '16px',
+            color: '#888',
+            textAlign: 'center',
+            maxWidth: '500px'
+          }}>
+            {loadingMessage === 'Connection timeout' 
+              ? 'Unable to connect to the backend server'
+              : 'Lost connection to the backend server'
+            }
+          </p>
+          <p style={{ 
+            margin: '0 0 20px 0',
+            fontSize: '14px',
+            color: '#666',
+            textAlign: 'center'
+          }}>
+            {loadingMessage === 'Connection timeout'
+              ? 'The server may be down. Please try again later or refresh the page'  
+              : 'Please check your internet connection and refresh the page'
+            }
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Refresh Page
+          </button>
+        </div>
+      )}
+
       {/* Top Right Buttons */}
       <div style={{
         position: 'fixed',
@@ -540,6 +667,89 @@ function App() {
         message={authMessage}
         onAuthSuccess={handleAuthSuccess}
       />
+
+      {/* Connection Status HUD - Bottom Left */}
+      {connectionStatus === 'connected' && !isCanvasLoading && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          borderRadius: '20px',
+          color: 'white',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#4CAF50',
+            borderRadius: '50%',
+            boxShadow: '0 0 6px #4CAF50'
+          }}></div>
+          Connected
+        </div>
+      )}
+
+      {/* Connection Status HUD - Connecting State */}
+      {connectionStatus === 'connecting' && !isCanvasLoading && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          borderRadius: '20px',
+          color: 'white',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#FFC107',
+            borderRadius: '50%',
+            animation: 'pulse 1.5s infinite'
+          }}></div>
+          Connecting...
+        </div>
+      )}
+
+      {/* Connection Status HUD - Disconnected State */}
+      {connectionStatus === 'disconnected' && !isCanvasLoading && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          borderRadius: '20px',
+          color: 'white',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#f44336',
+            borderRadius: '50%'
+          }}></div>
+          Disconnected
+        </div>
+      )}
 
     </div>
   )

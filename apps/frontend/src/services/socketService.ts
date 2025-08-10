@@ -27,22 +27,29 @@ interface CanvasSnapshot {
 class SocketService {
   private socket: Socket | null = null;
   private authRequiredCallback: ((message: string) => void) | null = null;
+  private connectionStatusCallback: ((status: 'connecting' | 'connected' | 'disconnected') => void) | null = null;
 
   connect(): void {
     if (this.socket?.connected) {
+      this.connectionStatusCallback?.('connected');
       return;
     }
+
+    // Notify connecting state
+    this.connectionStatusCallback?.('connecting');
 
     this.socket = io(import.meta.env.VITE_SERVER_URL);
 
     this.socket.on("connect", () => {
       console.log("Connected to server");
+      this.connectionStatusCallback?.('connected');
       const sessionToken = AuthService.getSessionToken();
       this.socket?.emit("join-canvas", { sessionToken });
     });
 
     this.socket.on("disconnect", () => {
       console.log("Disconnected from server");
+      this.connectionStatusCallback?.('disconnected');
     });
 
     this.socket.on("canvas-loaded", (data) => {
@@ -161,6 +168,14 @@ class SocketService {
 
   removeAuthRequiredCallback(): void {
     this.authRequiredCallback = null;
+  }
+
+  onConnectionStatusChange(callback: (status: 'connecting' | 'connected' | 'disconnected') => void): void {
+    this.connectionStatusCallback = callback;
+  }
+
+  removeConnectionStatusCallback(): void {
+    this.connectionStatusCallback = null;
   }
 }
 
