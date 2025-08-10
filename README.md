@@ -149,14 +149,14 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `HGETALL userprofile:<id>` - Get complete user profile with color breakdown
 - **Benefits**: All user data in single hash, efficient color tracking, automatic favorite color calculation
 
-### 7. **String Counters** (`INCR`/`MGET`)
+### 7. **Hash Map** (`HINCRBY`/`HGETALL`)
 
 - **Purpose**: Color usage statistics
-- **Key Pattern**: `stats:color:<color_index>`
+- **Key**: `stats:colors`
 - **Commands Used**:
-  - `INCR stats:color:5` - Increment color usage
-  - `MGET stats:color:0 stats:color:1 ... stats:color:15` - Get all color stats
-- **Benefits**: Atomic increments, batch retrieval for statistics
+  - `HINCRBY stats:colors 5 1` - Increment color usage
+  - `HGETALL stats:colors` - Get all color statistics
+- **Benefits**: Single key for all color data, atomic increments, efficient retrieval, reduced memory overhead
 
 ### 8. **Time Series** (`TS.CREATE`/`TS.ADD`/`TS.RANGE`)
 
@@ -239,7 +239,7 @@ const redisSubscriber = new Redis({
 - **Unique Visitors**: HyperLogLog for memory-efficient counting (`visitors:daily:*`)
 - **Activity Stream**: Redis Streams for ordered event log (`stream:activity`)
 - **User Profiles**: Hash maps with embedded color tracking (`userprofile:*` with `color_N` fields)
-- **Global Color Statistics**: Individual counters for each color (`stats:color:*`)
+- **Global Color Statistics**: Hash map with all color counters (`stats:colors`)
 
 ### Snapshot Generation & Caching
 
@@ -267,7 +267,7 @@ const redisSubscriber = new Redis({
    - Track unique visitor: `PFADD visitors:daily:<date> <user_id>`
    - Add to activity stream: `XADD stream:activity * userId <id> x <x> y <y> color <color_id>`
    - Update user profile: `JSON.SET userprofile:<id> $ <updated_profile_object>`
-   - Increment global color stats: `INCR stats:color:<color_id>`
+   - Increment global color stats: `HINCRBY stats:colors <color_id> 1`
 4. Server publishes update: `PUBLISH canvas:updates <pixel_data>`
 5. Subscriber receives and broadcasts to all clients via Socket.io
 

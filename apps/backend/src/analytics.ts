@@ -15,7 +15,7 @@ export class AnalyticsManager {
   private static readonly DAILY_VISITORS_KEY_PREFIX = 'visitors:daily:';
   private static readonly ACTIVITY_STREAM_KEY = 'stream:activity';
   private static readonly USER_PROFILE_KEY_PREFIX = 'userprofile:';
-  private static readonly COLOR_USAGE_KEY_PREFIX = 'stats:color:';
+  private static readonly COLOR_USAGE_KEY = 'stats:colors';
 
   // User Leaderboard (Redis Sorted Sets)
   static async incrementUserScore(userId: string, points: number = 1): Promise<void> {
@@ -357,25 +357,17 @@ export class AnalyticsManager {
 
   // Color Statistics
   static async incrementColorUsage(color: number): Promise<void> {
-    const key = `${this.COLOR_USAGE_KEY_PREFIX}${color}`;
-    await redis.incr(key);
+    await redis.hincrby(this.COLOR_USAGE_KEY, color.toString(), 1);
   }
 
   static async getColorUsageStats(): Promise<Array<{color: number, count: number}>> {
-    const keys = [];
-    for (let i = 0; i < 16; i++) { // Assuming 16 colors (0-15)
-      keys.push(`${this.COLOR_USAGE_KEY_PREFIX}${i}`);
-    }
-    
-    const counts = await redis.mget(...keys);
+    const colorStats = await redis.hgetall(this.COLOR_USAGE_KEY);
     const stats = [];
     
-    for (let i = 0; i < counts.length; i++) {
-      if (counts[i] && parseInt(counts[i]!) > 0) {
-        stats.push({
-          color: i,
-          count: parseInt(counts[i]!)
-        });
+    for (const [colorStr, countStr] of Object.entries(colorStats)) {
+      const count = parseInt(countStr);
+      if (count > 0) {
+        stats.push({ color: parseInt(colorStr), count });
       }
     }
     
