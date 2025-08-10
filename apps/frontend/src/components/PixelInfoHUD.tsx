@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { colorIndexToHex } from '@redis-place/shared';
+import { colorIdToHex, isEmptyPixel } from '@redis-place/shared';
 
 interface PixelInfoData {
   x: number;
@@ -139,20 +139,20 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
               style={{
                 width: '12px',
                 height: '12px',
-                backgroundColor: colorIndexToHex(infoData.currentColor),
+                backgroundColor: colorIdToHex(infoData.currentColor) || 'transparent',
                 border: '1px solid white',
                 borderRadius: '2px'
               }}
             />
             <span style={{ fontSize: '11px', fontWeight: 'bold' }}>
-              Current: Color {infoData.currentColor}
+              Current: {isEmptyPixel(infoData.currentColor) ? 'Empty' : `Color ${infoData.currentColor}`}
             </span>
           </div>
 
           {/* Last Placement Info */}
-          {infoData.currentColor === 0 ? (
+          {isEmptyPixel(infoData.currentColor) ? (
             <div style={{ fontSize: '11px', color: '#666' }}>
-              This pixel has no color
+              This pixel is empty (no color placed)
             </div>
           ) : infoData.lastPlacement ? (
             <div>
@@ -171,7 +171,7 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
                     style={{
                       width: '14px',
                       height: '14px',
-                      backgroundColor: colorIndexToHex(infoData.lastPlacement.color),
+                      backgroundColor: colorIdToHex(infoData.lastPlacement.color) || 'transparent',
                       border: '1px solid white',
                       borderRadius: '2px'
                     }}

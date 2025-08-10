@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS } from '@redis-place/shared';
+import { getAvailableColorIds, colorIdToHex } from '@redis-place/shared';
 
 interface PlacementHUDProps {
   selectedPixel: { x: number; y: number } | null;
@@ -9,12 +9,12 @@ interface PlacementHUDProps {
 }
 
 const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel, onColorPreview, onCooldownChange }) => {
-  const [selectedColor, setSelectedColor] = useState('#e50000');
+  const [selectedColorId, setSelectedColorId] = useState(5);
   const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
 
-  // Use shared color palette
-  const colors = COLORS;
+  // Get available color IDs
+  const availableColorIds = getAvailableColorIds();
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -33,7 +33,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
     return () => clearInterval(interval);
   }, [cooldownActive, cooldownTime, onCooldownChange]);
 
-  // Handle keyboard shortcuts when pixel is selected (but not during cooldown)
+  // Handle Enter key to paint when pixel is selected (but not during cooldown)
   useEffect(() => {
     if (!selectedPixel || cooldownActive) return;
 
@@ -44,46 +44,21 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
         handlePlacePixel();
         return;
       }
-
-      // Color selection keys: 1-9, 0, Q, W, E, R, T, Y
-      let colorIndex = -1;
-      
-      // Numbers 1-9 map to colors 0-8
-      const keyNum = parseInt(e.key);
-      if (keyNum >= 1 && keyNum <= 9) {
-        colorIndex = keyNum - 1;
-      }
-      // 0 maps to color 9
-      else if (e.key === '0') {
-        colorIndex = 9;
-      }
-      // Letter keys for colors 10-15
-      else {
-        const letterKeys = ['q', 'w', 'e', 'r', 't', 'y'];
-        const letterIndex = letterKeys.indexOf(e.key.toLowerCase());
-        if (letterIndex !== -1) {
-          colorIndex = 10 + letterIndex;
-        }
-      }
-
-      if (colorIndex >= 0 && colorIndex < colors.length) {
-        setSelectedColor(colors[colorIndex]);
-        onColorPreview(colors[colorIndex]);
-      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPixel, cooldownActive, colors, onColorPreview]);
+  }, [selectedPixel, cooldownActive]);
 
   // Set up color preview when color changes (but not during cooldown)
   useEffect(() => {
     if (selectedPixel && !cooldownActive) {
-      onColorPreview(selectedColor);
+      const hexColor = colorIdToHex(selectedColorId);
+      onColorPreview(hexColor);
     } else {
       onColorPreview(null);
     }
-  }, [selectedColor, selectedPixel, cooldownActive, onColorPreview]);
+  }, [selectedColorId, selectedPixel, cooldownActive, onColorPreview]);
 
   // Clear preview when pixel is deselected or cooldown starts
   useEffect(() => {
@@ -94,16 +69,18 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
 
   const handlePlacePixel = () => {
     if (cooldownActive || !selectedPixel) return;
-    onPlacePixel(selectedColor);
-    setCooldownActive(true);
-    setCooldownTime(50); // 5 seconds at 100ms intervals
-    onCooldownChange(true);
+    const hexColor = colorIdToHex(selectedColorId);
+    if (hexColor) {
+      onPlacePixel(hexColor);
+      setCooldownActive(true);
+      setCooldownTime(50); // 5 seconds at 100ms intervals
+      onCooldownChange(true);
+    }
   };
 
-  const handleColorSelect = (color: string) => {
+  const handleColorSelect = (colorId: number) => {
     if (cooldownActive) return; // Don't allow color changes during cooldown
-    setSelectedColor(color);
-    onColorPreview(color);
+    setSelectedColorId(colorId);
   };
 
   // Show cooldown state - but still allow pixel selection for pre-selection
@@ -193,28 +170,20 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
           maxWidth: '280px',
           margin: '0 auto 16px auto'
         }}>
-          {colors.map((color, index) => {
-            // Generate keyboard label: 1-9, 0, Q, W, E, R, T, Y
-            let keyLabel;
-            if (index < 9) {
-              keyLabel = (index + 1).toString();
-            } else if (index === 9) {
-              keyLabel = '0';
-            } else {
-              const letterKeys = ['Q', 'W', 'E', 'R', 'T', 'Y'];
-              keyLabel = letterKeys[index - 10];
-            }
+          {availableColorIds.map((colorId) => {
+            const hexColor = colorIdToHex(colorId);
+            if (!hexColor) return null;
 
             return (
               <div
-                key={color}
-                onClick={() => handleColorSelect(color)}
+                key={colorId}
+                onClick={() => handleColorSelect(colorId)}
                 style={{
                   width: '28px',
                   height: '28px',
-                  backgroundColor: color,
+                  backgroundColor: hexColor,
                   cursor: cooldownActive ? 'not-allowed' : 'pointer',
-                  border: selectedColor === color ? '3px solid white' : '2px solid #666',
+                  border: selectedColorId === colorId ? '3px solid white' : '2px solid #666',
                   borderRadius: '4px',
                   transition: 'border-color 0.2s',
                   position: 'relative',
@@ -227,10 +196,10 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
                 <span style={{
                   fontSize: '10px',
                   fontWeight: 'bold',
-                  color: '#fff',
-                  textShadow: '0px 0px 3px rgba(0,0,0,1)',
+                  color: colorId === 1 ? '#000' : '#fff',
+                  textShadow: colorId === 1 ? 'none' : '0px 0px 3px rgba(0,0,0,1)',
                 }}>
-                  {keyLabel}
+                  {colorId}
                 </span>
               </div>
             );
@@ -257,7 +226,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = ({ selectedPixel, onPlacePixel
       </button>
 
       <div style={{ marginTop: '12px', fontSize: '11px', color: '#888' }}>
-        <div>ESC: deselect • ENTER: paint • 1-9, 0, Q-Y: select color</div>
+        <div>ESC: deselect • ENTER: paint</div>
         <div style={{ marginTop: '4px', fontSize: '10px', color: '#666' }}>
           SPACE: select pixel • Arrow keys: move cursor
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReplayCanvas from './ReplayCanvas';
 import ReplayTimeline from './ReplayTimeline';
-import { colorIndexToHex } from '@redis-place/shared';
+import { colorIdToHex } from '@redis-place/shared';
 
 interface ReplayEvent {
   id: string;
@@ -81,12 +81,15 @@ const ReplayPage: React.FC = () => {
     
     eventsToDisplay.forEach(event => {
       const key = `${event.x}:${event.y}`;
-      pixelMap.set(key, {
-        x: event.x,
-        y: event.y,
-        color: colorIndexToHex(event.color),
-        timestamp: event.timestamp
-      });
+      const hexColor = colorIdToHex(event.color);
+      if (hexColor) { // Only add pixels that have a valid color (not empty)
+        pixelMap.set(key, {
+          x: event.x,
+          y: event.y,
+          color: hexColor,
+          timestamp: event.timestamp
+        });
+      }
     });
     
     setDisplayedPixels(Array.from(pixelMap.values()));

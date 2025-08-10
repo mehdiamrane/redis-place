@@ -278,14 +278,14 @@ app.get('/api/pixel-info/:x/:y', async (req, res) => {
       return res.status(500).json({ error: 'Failed to get pixel color' });
     }
     
-    // If pixel has no color (is white/empty), don't search
+    // If pixel is empty (ID 0), don't search
     if (currentColor === 0) {
       return res.json({
         x,
         y,
         currentColor: 0,
         lastPlacement: null,
-        message: 'This pixel has no color'
+        message: 'This pixel is empty (no color placed)'
       });
     }
     

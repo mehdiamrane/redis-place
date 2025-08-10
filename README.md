@@ -8,10 +8,10 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 
 - **Interactive Canvas**: 1000x1000 pixel canvas with zoom and pan functionality
 - **Real-time Collaboration**: See other users' pixel placements in real-time via WebSocket
-- **Color Palette**: 16 selected colors with keyboard shortcuts
+- **Advanced Color System**: 20 distinct colors with explicit ID mapping (ID 0 reserved for empty pixels)
 - **Cooldown System**: 5-second cooldown between pixel placements
-- **Keyboard Navigation**: Arrow keys for cursor movement, SPACE to select pixels
-- **Persistent Users**: User IDs persist across browser sessions using localStorage
+- **Keyboard Navigation**: Arrow keys for cursor movement, SPACE to select pixels, ENTER to paint
+- **Click-to-Select Interface**: Simple color picker
 
 ### Analytics Dashboard
 
@@ -76,14 +76,18 @@ This project demonstrates multiple advanced Redis features and patterns:
 
 ### 1. **Bitfields** (`BITFIELD`)
 
-- **Purpose**: Efficient storage of pixel colors (4 bits per pixel)
-- **Implementation**: Each pixel color (0-15) is stored as a 4-bit unsigned integer
+- **Purpose**: Efficient storage of pixel colors (5 bits per pixel)
+- **Implementation**: Each pixel color ID (0-31) is stored as a 5-bit unsigned integer
 - **Key**: `canvas:pixels`
 - **Commands Used**:
-  - `BITFIELD canvas:pixels SET u4 <bit_offset> <color_value>`
-  - `BITFIELD canvas:pixels GET u4 <bit_offset>`
-- **Efficiency**: Stores 1M pixels in ~500KB vs 4MB with traditional key-per-pixel approach
-- **Design Choice**: 16 colors chosen for storage optimization (4 bits per pixel). Redis easily supports more colors (e.g., u8 for 256 colors) but would double memory usage.
+  - `BITFIELD canvas:pixels SET u5 <bit_offset> <color_id>`
+  - `BITFIELD canvas:pixels GET u5 <bit_offset>`
+- **Color System**: 
+  - **ID 0**: Reserved for empty/unplaced pixels (no visual representation)
+  - **ID 1-19**: Explicit color mappings (white, grays, black, pinks, reds, oranges, greens, blues, purples, yellows)
+  - **ID 20-31**: Reserved for future expansion
+- **Efficiency**: Stores 1M pixels in ~625KB with room for 32 distinct states
+- **Conceptual Design**: Clean separation between "empty pixel" (ID 0) and "white color" (ID 1) for better user experience
 
 ### 2. **Pub/Sub** (`PUBLISH`/`SUBSCRIBE`)
 
@@ -218,9 +222,10 @@ const redisSubscriber = new Redis({
 ### Canvas Storage
 
 - **1M pixels** stored in a single Redis bitfield
-- **4 bits per pixel** (16 possible colors: 0-15)
-- **Bit offset calculation**: `pixelIndex * 4` where `pixelIndex = y * 1000 + x`
-- **Memory usage**: ~500KB for full canvas vs ~4MB with individual keys
+- **5 bits per pixel** (32 possible color IDs: 0-31, currently using 0-19)
+- **Bit offset calculation**: `pixelIndex * 5` where `pixelIndex = y * 1000 + x`
+- **Memory usage**: ~625KB for full canvas vs ~4MB with individual keys
+- **Color ID System**: Explicit mapping with ID 0 for empty pixels, IDs 1-19 for distinct colors
 
 ### Analytics Storage
 
@@ -233,21 +238,20 @@ const redisSubscriber = new Redis({
 ### Snapshot Generation
 
 1. Retrieve placed pixel coordinates from set: `SMEMBERS canvas:placed`
-2. For each coordinate, get color: `BITFIELD GET u4 <offset>`
-3. Filter out empty pixels (color = 0)
+2. For each coordinate, get color ID: `BITFIELD GET u5 <offset>`
+3. Filter out empty pixels (color ID = 0) 
 4. Serialize to JSON and cache: `SET canvas:snapshot <json>`
 
 ### Real-time Updates & Analytics
 
 1. Client places pixel → WebSocket message to server
-2. Server validates and stores in Redis bitfield
+2. Server validates and stores in Redis bitfield using u5 encoding
 3. **Analytics tracking** (all executed in parallel):
    - Increment user score: `ZINCRBY leaderboard:users 1 <user_id>`
    - Track unique visitor: `PFADD visitors:daily:<date> <user_id>`
-   - Add to activity stream: `XADD stream:activity * userId <id> x <x> y <y>`
-   - Update user profile: `HINCRBY userprofile:<id> pixelsPlaced 1`
-   - Track user color usage: `HINCRBY userprofile:<id> color_<N> 1`
-   - Increment global color stats: `INCR stats:color:<color>`
+   - Add to activity stream: `XADD stream:activity * userId <id> x <x> y <y> color <color_id>`
+   - Update user profile: `JSON.SET userprofile:<id> $ <updated_profile_object>`
+   - Increment global color stats: `INCR stats:color:<color_id>`
 4. Server publishes update: `PUBLISH canvas:updates <pixel_data>`
 5. Subscriber receives and broadcasts to all clients via Socket.io
 
@@ -269,7 +273,7 @@ const redisSubscriber = new Redis({
 - **Mouse**: Click to select pixels, pick a color and click paint to place
 - **SPACE**: Select pixel under cursor
 - **Arrow Keys**: Move cursor around canvas
-- **1-9, 0, Q, W, E, R, T, Y**: Select colors (keyboard shortcuts)
+- **Click Color Buttons**: Select from 20 available colors (numbered 1-20)
 - **Enter**: Place pixel with selected color
 - **ESC**: Deselect pixel
 - **Mouse Wheel**: Zoom in/out

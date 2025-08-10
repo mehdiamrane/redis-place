@@ -102,7 +102,7 @@ function App() {
       const newPixel: PlacedPixel = {
         x: data.x,
         y: data.y,
-        color: socketService.colorIndexToHex(data.color),
+        color: socketService.colorIdToHex(data.color) || '#ffffff', // Default to white for empty pixels
         timestamp: data.timestamp
       };
 
@@ -266,9 +266,9 @@ function App() {
       return [...filtered, optimisticPixel];
     });
     
-    const colorIndex = socketService.hexToColorIndex(color);
-    console.log('Color converted to index:', colorIndex);
-    socketService.placePixel(selectedPixel.x, selectedPixel.y, colorIndex);
+    const colorId = socketService.hexToColorId(color);
+    console.log('Color converted to ID:', colorId);
+    socketService.placePixel(selectedPixel.x, selectedPixel.y, colorId);
     
     // After painting: close interface but keep cursor position for further navigation
     setSelectedPixel(null);

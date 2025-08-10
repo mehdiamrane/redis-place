@@ -1,6 +1,6 @@
 import redis from './redis';
 import { CanvasSnapshot } from './types';
-import { colorIndexToHex, hexToColorIndex } from '@redis-place/shared';
+import { colorIdToHex, hexToColorId, isEmptyPixel } from '@redis-place/shared';
 
 export const CANVAS_WIDTH = 1000;
 export const CANVAS_HEIGHT = 1000;
@@ -25,14 +25,14 @@ export class CanvasManager {
     if (x < 0 || x >= CANVAS_WIDTH || y < 0 || y >= CANVAS_HEIGHT) {
       throw new Error('Invalid pixel coordinates');
     }
-    if (color < 0 || color > 15) {
-      throw new Error('Invalid color value (must be 0-15)');
+    if (color < 0 || color > 31) {
+      throw new Error('Invalid color value (must be 0-31)');
     }
 
     const pixelIndex = this.pixelToIndex(x, y);
-    // Each u4 field takes 4 bits, so we need to multiply by 4 for the bit offset
-    const bitOffset = pixelIndex * 4;
-    await redis.bitfield(CANVAS_KEY, 'SET', 'u4', bitOffset, color);
+    // Each u5 field takes 5 bits, so we need to multiply by 5 for the bit offset
+    const bitOffset = pixelIndex * 5;
+    await redis.bitfield(CANVAS_KEY, 'SET', 'u5', bitOffset, color);
     
     // Track placed pixels for efficient snapshot generation
     const pixelKey = `${x}:${y}`;
@@ -67,9 +67,9 @@ export class CanvasManager {
     }
 
     const pixelIndex = this.pixelToIndex(x, y);
-    // Each u4 field takes 4 bits, so we need to multiply by 4 for the bit offset
-    const bitOffset = pixelIndex * 4;
-    const [color] = await redis.bitfield(CANVAS_KEY, 'GET', 'u4', bitOffset) as [number];
+    // Each u5 field takes 5 bits, so we need to multiply by 5 for the bit offset
+    const bitOffset = pixelIndex * 5;
+    const [color] = await redis.bitfield(CANVAS_KEY, 'GET', 'u5', bitOffset) as [number];
     console.log('Pixel color:', color);
     
     return color || 0;
@@ -107,7 +107,7 @@ export class CanvasManager {
       
       if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
         const color = await this.getPixel(x, y);
-        if (color > 0) {
+        if (!isEmptyPixel(color)) {
           pixels.push({ x, y, color });
         }
       }
@@ -152,19 +152,29 @@ export class CanvasManager {
     if (!canvasExists) {
       console.log('Initializing empty canvas...');
       // Initialize canvas with a single pixel to create the key
-      await redis.bitfield(CANVAS_KEY, 'SET', 'u4', 0, 0);
+      await redis.bitfield(CANVAS_KEY, 'SET', 'u5', 0, 0);
     }
     
     // Generate snapshot for fast loading
     await this.generateSnapshot();
   }
 
+  static colorIdToHex(colorId: number): string | null {
+    return colorIdToHex(colorId);
+  }
+
+  static hexToColorId(hex: string): number {
+    return hexToColorId(hex);
+  }
+
+  // Legacy compatibility methods
   static colorIndexToHex(colorIndex: number): string {
-    return colorIndexToHex(colorIndex);
+    const hex = colorIdToHex(colorIndex);
+    return hex || '#ffffff'; // Return white for empty pixels
   }
 
   static hexToColorIndex(hex: string): number {
-    return hexToColorIndex(hex);
+    return hexToColorId(hex);
   }
 
   static async getHeatmapData(timeRangeHours = 24, skipCache = false): Promise<{ x: number; y: number; intensity: number }[]> {

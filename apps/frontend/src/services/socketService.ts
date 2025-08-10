@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import { colorIndexToHex, hexToColorIndex } from "@redis-place/shared";
+import { colorIdToHex, hexToColorId } from "@redis-place/shared";
 import AuthService from "./authService";
 
 interface PlacedPixel {
@@ -132,7 +132,7 @@ class SocketService {
       const pixels = pixelArray.map((pixel: { x: number; y: number; color: number }) => ({
         x: pixel.x,
         y: pixel.y,
-        color: colorIndexToHex(pixel.color),
+        color: colorIdToHex(pixel.color) || '#ffffff', // Default to white for empty pixels
         timestamp: Date.now(),
       }));
 
@@ -144,14 +144,14 @@ class SocketService {
     }
   }
 
-  colorIndexToHex(colorIndex: number): string {
-    return colorIndexToHex(colorIndex);
+  colorIdToHex(colorId: number): string | null {
+    return colorIdToHex(colorId);
   }
 
-  hexToColorIndex(hex: string): number {
-    const index = hexToColorIndex(hex);
-    console.log(`Color mapping: ${hex} -> index ${index}`);
-    return index;
+  hexToColorId(hex: string): number {
+    const id = hexToColorId(hex);
+    console.log(`Color mapping: ${hex} -> id ${id}`);
+    return id;
   }
 
 
