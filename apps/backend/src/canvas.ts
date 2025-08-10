@@ -83,12 +83,12 @@ export class CanvasManager {
     const canvasExists = await redis.exists(CANVAS_KEY);
     if (!canvasExists) {
       const snapshot: CanvasSnapshot = {
-        data: JSON.stringify([]),
+        data: [],
         timestamp: Date.now(),
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT
       };
-      await redis.set(SNAPSHOT_KEY, JSON.stringify(snapshot));
+      await redis.call('JSON.SET', SNAPSHOT_KEY, '$', JSON.stringify(snapshot));
       console.log('Generated empty canvas snapshot');
       return snapshot;
     }
@@ -114,20 +114,20 @@ export class CanvasManager {
     }
     
     const snapshot: CanvasSnapshot = {
-      data: JSON.stringify(pixels),
+      data: pixels,
       timestamp: Date.now(),
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT
     };
 
-    await redis.set(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    await redis.call('JSON.SET', SNAPSHOT_KEY, '$', JSON.stringify(snapshot));
     console.log(`Generated snapshot with ${pixels.length} pixels`);
     return snapshot;
   }
 
   static async getSnapshot(): Promise<CanvasSnapshot | null> {
     try {
-      const snapshotData = await redis.get(SNAPSHOT_KEY);
+      const snapshotData = await redis.call('JSON.GET', SNAPSHOT_KEY) as string;
       if (!snapshotData) {
         return await this.generateSnapshot();
       }

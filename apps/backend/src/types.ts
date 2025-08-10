@@ -14,7 +14,7 @@ export interface PixelUpdateData {
 }
 
 export interface CanvasSnapshot {
-  data: string;
+  data: { x: number; y: number; color: number }[];
   timestamp: number;
   width: number;
   height: number;

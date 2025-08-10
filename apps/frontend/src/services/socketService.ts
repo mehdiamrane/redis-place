@@ -18,7 +18,7 @@ interface PixelUpdateData {
 }
 
 interface CanvasSnapshot {
-  data: string;
+  data: { x: number; y: number; color: number }[];
   timestamp: number;
   width: number;
   height: number;
@@ -118,19 +118,18 @@ class SocketService {
     }
   }
 
-  private parseCanvasData(jsonData: string): PlacedPixel[] {
+  private parseCanvasData(pixelArray: { x: number; y: number; color: number }[]): PlacedPixel[] {
     try {
-      console.log("🔍 Parsing canvas data:", jsonData);
+      console.log("🔍 Parsing canvas data:", pixelArray);
 
-      if (!jsonData) {
-        console.log("⚠️ Empty jsonData");
+      if (!pixelArray || !Array.isArray(pixelArray)) {
+        console.log("⚠️ Empty or invalid pixel array");
         return [];
       }
 
-      const pixelData = JSON.parse(jsonData);
-      console.log("📋 Parsed pixel data:", pixelData);
+      console.log("📋 Processing pixel data:", pixelArray);
 
-      const pixels = pixelData.map((pixel: { x: number; y: number; color: number }) => ({
+      const pixels = pixelArray.map((pixel: { x: number; y: number; color: number }) => ({
         x: pixel.x,
         y: pixel.y,
         color: colorIndexToHex(pixel.color),
