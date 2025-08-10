@@ -149,14 +149,18 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `HGETALL userprofile:<id>` - Get complete user profile with color breakdown
 - **Benefits**: All user data in single hash, efficient color tracking, automatic favorite color calculation
 
-### 7. **Hash Map** (`HINCRBY`/`HGETALL`)
+### 7. **Hash Map** (`HSET`/`HGETALL`/`HINCRBY`)
 
-- **Purpose**: Color usage statistics
-- **Key**: `stats:colors`
+- **Purpose**: Color usage statistics and user credential storage
+- **Key Patterns**: 
+  - `stats:colors` - Global color usage counters
+  - `user:<username>` - User credentials and metadata
 - **Commands Used**:
   - `HINCRBY stats:colors 5 1` - Increment color usage
   - `HGETALL stats:colors` - Get all color statistics
-- **Benefits**: Single key for all color data, atomic increments, efficient retrieval, reduced memory overhead
+  - `HSET user:johndoe password <bcrypt_hash> createdAt <timestamp>` - Store user credentials
+  - `HGETALL user:johndoe` - Retrieve user data for authentication
+- **Benefits**: Efficient field-based storage, atomic operations, reduced key count, fast field retrieval
 
 ### 8. **Time Series** (`TS.CREATE`/`TS.ADD`/`TS.RANGE`)
 
@@ -238,6 +242,7 @@ const redisSubscriber = new Redis({
 - **User Leaderboards**: Sorted sets with automatic ranking (`leaderboard:users`)
 - **Unique Visitors**: HyperLogLog for memory-efficient counting (`visitors:daily:*`)
 - **Activity Stream**: Redis Streams for ordered event log (`stream:activity`)
+- **User Authentication**: Hash maps for credentials + string tokens for sessions (`user:*`, `session:*`)
 - **User Profiles**: Hash maps with embedded color tracking (`userprofile:*` with `color_N` fields)
 - **Global Color Statistics**: Hash map with all color counters (`stats:colors`)
 
@@ -257,6 +262,15 @@ const redisSubscriber = new Redis({
 - **Loading Time**: Reduced from 20+ seconds to ~4 seconds (first load), instant for cached loads
 
 **Single Source of Truth**: Redis bitfield contains complete canvas state with intelligent caching layer
+
+### User Authentication & Sessions
+
+**Secure user management system with Redis-backed storage:**
+
+- **Registration**: `HSET user:<username> password <bcrypt_hash> createdAt <timestamp>`
+- **Login**: Validates bcrypt-hashed passwords and creates UUID session tokens
+- **Session Management**: `SETEX session:<uuid> 2592000 <username>` (30-day sliding expiration)
+- **Security**: bcrypt hashing (cost factor 10), automatic session refresh, secure token revocation
 
 ### Real-time Updates & Analytics
 
