@@ -8,6 +8,7 @@ import { CanvasManager } from './canvas';
 import { AnalyticsManager } from './analytics';
 import { PixelUpdateData } from './types';
 import { AuthManager, authenticateSession, optionalAuth, AuthenticatedRequest } from './auth';
+import { initializeBadges } from './badges';
 
 dotenv.config();
 
@@ -170,7 +171,14 @@ app.get('/api/heatmap', async (req, res) => {
 // Badges endpoint
 app.get('/api/badges', async (req, res) => {
   try {
-    const badgesData = await redis.call('JSON.GET', 'badges', '$') as string | null;
+    let badgesData = await redis.call('JSON.GET', 'badges', '$') as string | null;
+    
+    // Initialize badges if they don't exist
+    if (!badgesData || badgesData === 'null') {
+      await initializeBadges();
+      badgesData = await redis.call('JSON.GET', 'badges', '$') as string | null;
+    }
+    
     if (badgesData && badgesData !== 'null') {
       const badgesArray = JSON.parse(badgesData);
       const badges = Array.isArray(badgesArray) ? badgesArray[0] : badgesArray;
