@@ -192,6 +192,60 @@ app.get('/api/badges', async (req, res) => {
   }
 });
 
+// Replay API endpoint
+app.get('/api/replay', async (req, res) => {
+  try {
+    const count = parseInt(req.query.count as string) || 1000;
+    const startTime = req.query.start ? parseInt(req.query.start as string) : undefined;
+    const endTime = req.query.end ? parseInt(req.query.end as string) : undefined;
+    
+    // Get all pixel activity from the stream
+    let streamRange = '+';
+    let streamStart = '-';
+    
+    // If time filters are provided, construct Redis stream IDs
+    if (startTime) {
+      streamStart = `${startTime}-0`;
+    }
+    if (endTime) {
+      streamRange = `${endTime}-0`;
+    }
+    
+    const results = await redis.xrange('stream:activity', streamStart, streamRange, 'COUNT', count);
+    
+    const pixelEvents = results
+      .map(([id, fields]) => {
+        const data: any = { id };
+        for (let i = 0; i < fields.length; i += 2) {
+          data[fields[i]] = fields[i + 1];
+        }
+        return data;
+      })
+      .filter(data => data.type === 'pixel' || !data.type) // Filter for pixel events only
+      .map(data => ({
+        id: data.id,
+        userId: data.userId,
+        x: parseInt(data.x),
+        y: parseInt(data.y),
+        color: parseInt(data.color),
+        timestamp: parseInt(data.timestamp)
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp); // Sort chronologically
+    
+    res.json({
+      events: pixelEvents,
+      totalCount: pixelEvents.length,
+      timeRange: {
+        start: pixelEvents[0]?.timestamp || null,
+        end: pixelEvents[pixelEvents.length - 1]?.timestamp || null
+      }
+    });
+  } catch (error) {
+    console.error('Error getting replay data:', error);
+    res.status(500).json({ error: 'Failed to get replay data' });
+  }
+});
+
 redisSubscriber.subscribe('canvas:updates');
 redisSubscriber.on('message', (channel, message) => {
   if (channel === 'canvas:updates') {

@@ -4,6 +4,7 @@ import InfoHUD from './components/InfoHUD'
 import PlacementHUD from './components/PlacementHUD'
 import AnalyticsDashboard from './components/AnalyticsDashboard'
 import BadgesPage from './components/BadgesPage'
+import ReplayPage from './components/ReplayPage'
 import UserProfile from './components/UserProfile'
 import HeatmapOverlay from './components/HeatmapOverlay'
 import HeatmapControls from './components/HeatmapControls'
@@ -20,7 +21,7 @@ interface PlacedPixel {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<'canvas' | 'analytics' | 'badges'>('canvas');
+  const [currentView, setCurrentView] = useState<'canvas' | 'analytics' | 'badges' | 'replay'>('canvas');
   const [hoveredPixel, setHoveredPixel] = useState({ x: -1, y: -1 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -47,6 +48,8 @@ function App() {
         setCurrentView('analytics');
       } else if (hash === 'badges') {
         setCurrentView('badges');
+      } else if (hash === 'replay') {
+        setCurrentView('replay');
       } else {
         setCurrentView('canvas');
       }
@@ -295,6 +298,11 @@ function App() {
     return <BadgesPage />;
   }
 
+  // Show replay page
+  if (currentView === 'replay') {
+    return <ReplayPage />;
+  }
+
   // Show canvas (default)
   return (
     <div style={{ 
@@ -398,6 +406,20 @@ function App() {
           }}
         >
           📊 Analytics
+        </button>
+        <button
+          onClick={() => window.location.hash = 'replay'}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: '#FF5722',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          🎬 Replay
         </button>
       </div>
 
