@@ -30,6 +30,27 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 - **Real-time Tracking**: Every pixel placement is tracked in 50x50 pixel zones using Redis Time Series
 - **High Performance**: Multi-layer optimization with Redis pipelines and caching - reduced from 30s to 180ms (pipelines) to 90ms (cache hits)
 
+### Canvas Replay System
+
+- **Historical Timeline Playbook**: Watch the canvas evolve over time from the very first pixel
+- **Date Range Filtering**: Load events by selecting specific start and end timestamps (up to 30-day range)
+- **Quick Time Presets**: One-click buttons for common time ranges (1h, 6h, 24h, 7d)
+- **Timeline Controls**: Play/pause, step forward/backward, adjustable playback speeds (0.5x to 10x)
+- **Event Filtering**: Automatically filters pixel placement events from the activity stream
+- **Chronological Reconstruction**: Builds canvas state progressively, showing pixel overwrites and evolution
+- **Native Redis Filtering**: Uses Redis Streams' time-based filtering (`XRANGE`) for optimal performance
+- **Interactive UI**: DateTime inputs with validation, loading states, and comprehensive error handling
+
+### Pixel Info System (Smart Pixel History)
+
+- **Intelligent Query Optimization**: Only searches activity stream for pixels that have color (skips empty pixels)
+- **Progressive Search Algorithm**: Uses 10k event batches with 7-day time windows for efficient historical lookup
+- **Permanent HUD Display**: Always-visible info panel showing last pixel placement details
+- **Real-time Updates**: Instantly shows pixel information as you navigate the canvas
+- **Last Placement Focus**: Shows most recent placement with user, timestamp, and color information
+- **Performance Optimized**: Avoids unnecessary database queries for empty pixels (Color 0)
+- **Search Progress Feedback**: Visual indicators showing search attempts and progress through historical data
+
 ### Data Storage
 
 - **Persistent Storage**: All pixel data stored in Redis with efficient snapshot system
@@ -107,14 +128,24 @@ This project demonstrates multiple advanced Redis features and patterns:
 - **Benefits**: Probabilistic counting with ~1% error but constant memory usage
 - **Efficiency**: Can count billions of unique items with only 12KB per key
 
-### 7. **Streams** (`XADD`/`XREVRANGE`)
+### 7. **Streams** (`XADD`/`XREVRANGE`/`XRANGE`)
 
-- **Purpose**: Activity feed and event sourcing
+- **Purpose**: Activity feed, event sourcing, replay system, and pixel history tracking
 - **Key**: `stream:activity`
 - **Commands Used**:
-  - `XADD stream:activity * userId <id> x <x> y <y> color <color>` - Add activity
-  - `XREVRANGE stream:activity + - COUNT 20` - Get recent activity
-- **Benefits**: Append-only log with automatic ID generation and time ordering
+  - `XADD stream:activity * userId <id> x <x> y <y> color <color> type pixel` - Add pixel placement activity
+  - `XREVRANGE stream:activity + - COUNT 50` - Get recent activity for live feed
+  - `XRANGE stream:activity - + COUNT 10000` - Get chronological events for replay system
+  - `XREVRANGE stream:activity + -` - Get all events for pixel history filtering
+- **Advanced Use Cases**:
+  - **Canvas Replay**: Uses native Redis time-based filtering (`XRANGE startTime endTime`) for optimal performance, sorting events chronologically to reconstruct canvas evolution
+  - **Pixel Info System**: Intelligent progressive search using `XREVRANGE` with 10k batches and 7-day time windows, only querying colored pixels to avoid unnecessary searches
+  - **Event Filtering**: Uses `type` field to distinguish pixel placements from other activities (badges, etc.)
+- **Benefits**: 
+  - Append-only log with automatic ID generation and time ordering
+  - Complete audit trail for every pixel placement with user attribution
+  - Efficient chronological and reverse-chronological queries
+  - Foundation for both replay functionality and individual pixel forensics
 
 ### 8. **Hashes** (`HMSET`/`HMGET`/`HINCRBY`)
 
@@ -228,6 +259,8 @@ const redisSubscriber = new Redis({
    - Backend runs on `http://localhost:3001`
    - Frontend runs on `http://localhost:5173`
    - Analytics dashboard available at `http://localhost:5173/#analytics`
+   - Canvas replay system available at `http://localhost:5173/#replay`
+   - Badges page available at `http://localhost:5173/#badges`
 
 ## 🎮 Controls
 
@@ -314,6 +347,11 @@ const redisSubscriber = new Redis({
 - `GET /api/leaderboard?limit=N` - Top user leaderboard
 - `GET /api/activity?count=N` - Recent activity feed
 - `GET /api/user/:userId` - Individual user profile and rank
+
+### Replay & Pixel Info
+
+- `GET /api/replay?start=timestamp&end=timestamp` - Date-range filtered pixel events for canvas replay (max 30-day range)
+- `GET /api/pixel-info/:x/:y` - Smart pixel information with progressive search (only queries colored pixels)
 
 ## 🎯 Hackathon Features
 

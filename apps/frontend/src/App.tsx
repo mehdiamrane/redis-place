@@ -9,6 +9,7 @@ import UserProfile from './components/UserProfile'
 import HeatmapOverlay from './components/HeatmapOverlay'
 import HeatmapControls from './components/HeatmapControls'
 import AuthModal from './components/AuthModal'
+import PixelInfoHUD from './components/PixelInfoHUD'
 import socketService from './services/socketService'
 import AuthService from './services/authService'
 import './App.css'
@@ -172,6 +173,7 @@ function App() {
     // Update cursor position to match clicked pixel for continuity
     setCursorPosition({ x, y });
   };
+
 
   const handleDeselectPixel = () => {
     setSelectedPixel(null);
@@ -450,6 +452,9 @@ function App() {
         zoom={zoom}
         cursorPosition={cursorPosition}
       />
+      <PixelInfoHUD
+        selectedPixel={selectedPixel}
+      />
       <PlacementHUD
         selectedPixel={selectedPixel}
         onPlacePixel={handlePlacePixel}
@@ -479,6 +484,7 @@ function App() {
         message={authMessage}
         onAuthSuccess={handleAuthSuccess}
       />
+
     </div>
   )
 }

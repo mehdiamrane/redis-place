@@ -195,23 +195,34 @@ app.get('/api/badges', async (req, res) => {
 // Replay API endpoint
 app.get('/api/replay', async (req, res) => {
   try {
-    const count = parseInt(req.query.count as string) || 1000;
     const startTime = req.query.start ? parseInt(req.query.start as string) : undefined;
     const endTime = req.query.end ? parseInt(req.query.end as string) : undefined;
     
-    // Get all pixel activity from the stream
-    let streamRange = '+';
-    let streamStart = '-';
-    
-    // If time filters are provided, construct Redis stream IDs
-    if (startTime) {
-      streamStart = `${startTime}-0`;
-    }
-    if (endTime) {
-      streamRange = `${endTime}-0`;
+    if (!startTime || !endTime) {
+      return res.status(400).json({ 
+        error: 'Both start and end timestamps are required',
+        example: '/api/replay?start=1628097234567&end=1628183634567'
+      });
     }
     
-    const results = await redis.xrange('stream:activity', streamStart, streamRange, 'COUNT', count);
+    if (startTime >= endTime) {
+      return res.status(400).json({ error: 'Start time must be before end time' });
+    }
+    
+    // Check if date range is too large (more than 30 days)
+    const maxRange = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+    if (endTime - startTime > maxRange) {
+      return res.status(400).json({ 
+        error: 'Date range too large. Maximum allowed is 30 days.',
+        maxRangeDays: 30
+      });
+    }
+    
+    // Use Redis native time filtering
+    const streamStart = `${startTime}-0`;
+    const streamEnd = `${endTime}-0`;
+    
+    const results = await redis.xrange('stream:activity', streamStart, streamEnd);
     
     const pixelEvents = results
       .map(([id, fields]) => {
@@ -236,13 +247,132 @@ app.get('/api/replay', async (req, res) => {
       events: pixelEvents,
       totalCount: pixelEvents.length,
       timeRange: {
-        start: pixelEvents[0]?.timestamp || null,
-        end: pixelEvents[pixelEvents.length - 1]?.timestamp || null
+        start: startTime,
+        end: endTime,
+        actualStart: pixelEvents[0]?.timestamp || null,
+        actualEnd: pixelEvents[pixelEvents.length - 1]?.timestamp || null
       }
     });
   } catch (error) {
     console.error('Error getting replay data:', error);
     res.status(500).json({ error: 'Failed to get replay data' });
+  }
+});
+
+// Pixel Info API endpoint
+app.get('/api/pixel-info/:x/:y', async (req, res) => {
+  try {
+    const x = parseInt(req.params.x);
+    const y = parseInt(req.params.y);
+    
+    if (isNaN(x) || isNaN(y) || x < 0 || x >= 1000 || y < 0 || y >= 1000) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+    
+    // First, check if pixel has a color (non-zero)
+    let currentColor = 0;
+    try {
+      currentColor = await CanvasManager.getPixel(x, y);
+    } catch (error) {
+      console.error('Error getting current pixel color:', error);
+      return res.status(500).json({ error: 'Failed to get pixel color' });
+    }
+    
+    // If pixel has no color (is white/empty), don't search
+    if (currentColor === 0) {
+      return res.json({
+        x,
+        y,
+        currentColor: 0,
+        lastPlacement: null,
+        message: 'This pixel has no color'
+      });
+    }
+    
+    // Progressive search: Start with recent 10K events
+    console.log(`Searching for last placement at (${x}, ${y})`);
+    
+    let searchResult = null;
+    let searchEndTime = Date.now();
+    let attempts = 0;
+    const maxAttempts = 20; // Prevent infinite loops
+    const batchSize = 10000;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    
+    while (!searchResult && attempts < maxAttempts) {
+      attempts++;
+      
+      console.log(`Search attempt ${attempts}, searching from ${new Date(searchEndTime).toISOString()}`);
+      
+      // Get recent batch of events (reverse chronological)
+      const results = await redis.xrevrange('stream:activity', `${searchEndTime}-0`, '-', 'COUNT', batchSize);
+      
+      if (results.length === 0) {
+        console.log('No more events to search');
+        break; // No more events
+      }
+      
+      // Search through this batch for our pixel
+      for (const [id, fields] of results) {
+        const data: any = { id };
+        for (let i = 0; i < fields.length; i += 2) {
+          data[fields[i]] = fields[i + 1];
+        }
+        
+        // Check if this is a pixel event at our coordinates
+        if ((data.type === 'pixel' || !data.type) && 
+            parseInt(data.x) === x && 
+            parseInt(data.y) === y) {
+          
+          searchResult = {
+            userId: data.userId,
+            x: parseInt(data.x),
+            y: parseInt(data.y),
+            color: parseInt(data.color),
+            timestamp: parseInt(data.timestamp)
+          };
+          console.log(`Found pixel placement:`, searchResult);
+          break;
+        }
+      }
+      
+      if (!searchResult) {
+        // Get timestamp of oldest event in this batch for next iteration
+        const oldestEvent = results[results.length - 1];
+        const oldestTimestamp = parseInt(oldestEvent[0].split('-')[0]);
+        
+        // Move search window back by 7 days from the oldest event we just checked
+        searchEndTime = oldestTimestamp - sevenDaysMs;
+        
+        if (searchEndTime <= 0) {
+          console.log('Reached beginning of time');
+          break;
+        }
+      }
+    }
+    
+    if (!searchResult) {
+      return res.json({
+        x,
+        y,
+        currentColor,
+        lastPlacement: null,
+        message: `No placement found after searching ${attempts} batches`,
+        searchAttempts: attempts
+      });
+    }
+    
+    res.json({
+      x,
+      y,
+      currentColor,
+      lastPlacement: searchResult,
+      searchAttempts: attempts
+    });
+    
+  } catch (error) {
+    console.error('Error getting pixel info:', error);
+    res.status(500).json({ error: 'Failed to get pixel info' });
   }
 });
 
