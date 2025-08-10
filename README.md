@@ -17,7 +17,7 @@ A collaborative pixel art canvas inspired by Reddit's r/place, built with React,
 
 - **Real-time Analytics**: Live dashboard showing canvas activity and user statistics
 - **User Leaderboards**: Top contributors ranked by pixels placed (all-time)
-- **Unique Visitor Tracking**: Daily and hourly unique visitor counts using probabilistic algorithms
+- **Unique Visitor Tracking**: Daily unique visitor counts using probabilistic algorithms
 - **Activity Feed**: Live stream of recent pixel placements
 - **Color Statistics**: Most popular colors with usage counts
 - **User Profiles**: Individual user statistics including pixels placed, favorite colors, and activity times
@@ -125,7 +125,7 @@ This project demonstrates multiple advanced Redis features and patterns:
 ### 6. **HyperLogLog** (`PFADD`/`PFCOUNT`)
 
 - **Purpose**: Unique visitor counting with minimal memory usage
-- **Keys**: `visitors:daily:YYYY-MM-DD`, `visitors:hourly:YYYY-MM-DDTHH`
+- **Keys**: `visitors:daily:YYYY-MM-DD`
 - **Commands Used**:
   - `PFADD visitors:daily:2024-08-09 <user_id>` - Track daily visitor
   - `PFCOUNT visitors:daily:2024-08-09` - Count unique daily visitors
@@ -230,7 +230,7 @@ const redisSubscriber = new Redis({
 ### Analytics Storage
 
 - **User Leaderboards**: Sorted sets with automatic ranking (`leaderboard:users`)
-- **Unique Visitors**: HyperLogLog for memory-efficient counting (`visitors:daily:*`, `visitors:hourly:*`)
+- **Unique Visitors**: HyperLogLog for memory-efficient counting (`visitors:daily:*`)
 - **Activity Stream**: Redis Streams for ordered event log (`stream:activity`)
 - **User Profiles**: Hash maps with embedded color tracking (`userprofile:*` with `color_N` fields)
 - **Global Color Statistics**: Individual counters for each color (`stats:color:*`)

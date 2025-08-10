@@ -28,7 +28,6 @@ interface ColorStat {
 interface DashboardStats {
   topUsers: LeaderboardEntry[];
   dailyVisitors: number;
-  hourlyVisitors: number;
   recentActivity: ActivityEntry[];
   colorStats: ColorStat[];
   totalPixelsPlaced: number;
@@ -114,7 +113,7 @@ function AnalyticsDashboard() {
         <div style={{ fontSize: '14px', color: '#888', marginBottom: '15px' }}>
           Real-time analytics powered by Redis • Updated every 10 seconds
           <br />
-          Current time: {new Date().toLocaleString()} • Server timezone: UTC
+          Current time: {new Date().toLocaleString()}
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
@@ -155,7 +154,7 @@ function AnalyticsDashboard() {
         {/* Summary Stats */}
         <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '10px' }}>
           <h2>📈 Live Statistics</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', fontSize: '14px' }}>
             <div>
               <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
                 {stats.totalPixelsPlaced.toLocaleString()}
@@ -168,16 +167,7 @@ function AnalyticsDashboard() {
               </div>
               <div style={{ color: '#888' }}>Unique Visitors Today</div>
               <div style={{ color: '#666', fontSize: '12px' }}>
-                Resets daily at midnight UTC
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
-                {stats.hourlyVisitors}
-              </div>
-              <div style={{ color: '#888' }}>Unique Visitors This Hour</div>
-              <div style={{ color: '#666', fontSize: '12px' }}>
-                Current hour: {new Date().getHours()}:00 - {new Date().getHours()}:59
+                Resets daily at midnight
               </div>
             </div>
             <div>

@@ -13,7 +13,6 @@ export class AnalyticsManager {
   // Redis Keys
   private static readonly USER_LEADERBOARD_KEY = 'leaderboard:users';
   private static readonly DAILY_VISITORS_KEY_PREFIX = 'visitors:daily:';
-  private static readonly HOURLY_VISITORS_KEY_PREFIX = 'visitors:hourly:';
   private static readonly ACTIVITY_STREAM_KEY = 'stream:activity';
   private static readonly USER_PROFILE_KEY_PREFIX = 'userprofile:';
   private static readonly COLOR_USAGE_KEY_PREFIX = 'stats:color:';
@@ -50,24 +49,13 @@ export class AnalyticsManager {
   // Unique Visitors (Redis HyperLogLog)
   static async trackUniqueVisitor(userId: string): Promise<void> {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const currentHour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
     
-    await Promise.all([
-      redis.pfadd(`${this.DAILY_VISITORS_KEY_PREFIX}${today}`, userId),
-      redis.pfadd(`${this.HOURLY_VISITORS_KEY_PREFIX}${currentHour}`, userId)
-    ]);
+    await redis.pfadd(`${this.DAILY_VISITORS_KEY_PREFIX}${today}`, userId);
   }
 
-  static async getUniqueVisitorCount(type: 'daily' | 'hourly', date?: string): Promise<number> {
-    let key: string;
-    
-    if (type === 'daily') {
-      const targetDate = date || new Date().toISOString().split('T')[0];
-      key = `${this.DAILY_VISITORS_KEY_PREFIX}${targetDate}`;
-    } else {
-      const targetHour = date || new Date().toISOString().slice(0, 13);
-      key = `${this.HOURLY_VISITORS_KEY_PREFIX}${targetHour}`;
-    }
+  static async getUniqueVisitorCount(date?: string): Promise<number> {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const key = `${this.DAILY_VISITORS_KEY_PREFIX}${targetDate}`;
     
     return await redis.pfcount(key);
   }
@@ -398,7 +386,6 @@ export class AnalyticsManager {
   static async getDashboardStats(): Promise<{
     topUsers: Array<{userId: string, score: number}>;
     dailyVisitors: number;
-    hourlyVisitors: number;
     recentActivity: Array<{
       id: string;
       userId: string;
@@ -412,10 +399,9 @@ export class AnalyticsManager {
     colorStats: Array<{color: number, count: number}>;
     totalPixelsPlaced: number;
   }> {
-    const [topUsers, dailyVisitors, hourlyVisitors, recentActivity, colorStats] = await Promise.all([
+    const [topUsers, dailyVisitors, recentActivity, colorStats] = await Promise.all([
       this.getTopUsers(10),
-      this.getUniqueVisitorCount('daily'),
-      this.getUniqueVisitorCount('hourly'),
+      this.getUniqueVisitorCount(),
       this.getRecentActivity(20),
       this.getColorUsageStats()
     ]);
@@ -426,7 +412,6 @@ export class AnalyticsManager {
     return {
       topUsers,
       dailyVisitors,
-      hourlyVisitors,
       recentActivity,
       colorStats,
       totalPixelsPlaced
