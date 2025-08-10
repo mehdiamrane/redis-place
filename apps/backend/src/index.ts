@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
         }).then(async () => {
           // Check for badge achievements after profile update
           try {
-            const key = `user:profile:${authenticatedUserId}`;
+            const key = `userprofile:${authenticatedUserId}`;
             const profileData = await redis.call('JSON.GET', key, '$') as string | null;
             if (profileData && profileData !== 'null') {
               const profileArray = JSON.parse(profileData);

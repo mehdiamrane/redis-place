@@ -15,7 +15,7 @@ export class AnalyticsManager {
   private static readonly DAILY_VISITORS_KEY_PREFIX = 'visitors:daily:';
   private static readonly HOURLY_VISITORS_KEY_PREFIX = 'visitors:hourly:';
   private static readonly ACTIVITY_STREAM_KEY = 'stream:activity';
-  private static readonly USER_PROFILE_KEY_PREFIX = 'user:profile:';
+  private static readonly USER_PROFILE_KEY_PREFIX = 'userprofile:';
   private static readonly COLOR_USAGE_KEY_PREFIX = 'stats:color:';
 
   // User Leaderboard (Redis Sorted Sets)

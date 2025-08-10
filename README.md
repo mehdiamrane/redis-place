@@ -119,12 +119,12 @@ This project demonstrates multiple advanced Redis features and patterns:
 ### 8. **Hashes** (`HMSET`/`HMGET`/`HINCRBY`)
 
 - **Purpose**: User profiles and complex data structures
-- **Key Pattern**: `user:profile:<user_id>`
+- **Key Pattern**: `userprofile:<user_id>`
 - **Fields**: `pixelsPlaced`, `favoriteColor`, `firstPixelTime`, `lastPixelTime`, `color_0`, `color_1`, etc.
 - **Commands Used**:
-  - `HINCRBY user:profile:<id> pixelsPlaced 1` - Increment pixel count
-  - `HINCRBY user:profile:<id> color_5 1` - Track individual color usage
-  - `HGETALL user:profile:<id>` - Get complete user profile with color breakdown
+  - `HINCRBY userprofile:<id> pixelsPlaced 1` - Increment pixel count
+  - `HINCRBY userprofile:<id> color_5 1` - Track individual color usage
+  - `HGETALL userprofile:<id>` - Get complete user profile with color breakdown
 - **Benefits**: All user data in single hash, efficient color tracking, automatic favorite color calculation
 
 ### 9. **String Counters** (`INCR`/`MGET`)
@@ -140,7 +140,7 @@ This project demonstrates multiple advanced Redis features and patterns:
 
 - **Purpose**: Activity heatmap tracking with time-based aggregation
 - **Key Pattern**: `heatmap:<zone_x>:<zone_y>`
-- **Implementation**: 
+- **Implementation**:
   - **Zone Tracking**: 1000x1000 canvas divided into 50x50 pixel zones (20x20 grid)
   - **Data Collection**: Each pixel placement increments the corresponding zone's time series
   - **Retention**: 7-day data retention for time-based analysis
@@ -150,7 +150,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - `TS.RANGE heatmap:0:0 <from_time> +` - Query activity in time range
   - `SETEX heatmap:cache:24h 300 <json_data>` - Cache results for 5 minutes
   - `GET heatmap:cache:24h` - Retrieve cached heatmap data
-- **Performance Optimization**: 
+- **Performance Optimization**:
   - **Challenge**: 400 sequential queries took ~30 seconds
   - **Solution**: Redis pipeline batches all queries into single round-trip
   - **Result**: Reduced query time to ~180ms (165x performance improvement)
@@ -196,7 +196,7 @@ const redisSubscriber = new Redis({
 - **User Leaderboards**: Sorted sets with automatic ranking (`leaderboard:users`)
 - **Unique Visitors**: HyperLogLog for memory-efficient counting (`visitors:daily:*`, `visitors:hourly:*`)
 - **Activity Stream**: Redis Streams for ordered event log (`stream:activity`)
-- **User Profiles**: Hash maps with embedded color tracking (`user:profile:*` with `color_N` fields)
+- **User Profiles**: Hash maps with embedded color tracking (`userprofile:*` with `color_N` fields)
 - **Global Color Statistics**: Individual counters for each color (`stats:color:*`)
 
 ### Snapshot Generation
@@ -214,8 +214,8 @@ const redisSubscriber = new Redis({
    - Increment user score: `ZINCRBY leaderboard:users 1 <user_id>`
    - Track unique visitor: `PFADD visitors:daily:<date> <user_id>`
    - Add to activity stream: `XADD stream:activity * userId <id> x <x> y <y>`
-   - Update user profile: `HINCRBY user:profile:<id> pixelsPlaced 1`
-   - Track user color usage: `HINCRBY user:profile:<id> color_<N> 1`
+   - Update user profile: `HINCRBY userprofile:<id> pixelsPlaced 1`
+   - Track user color usage: `HINCRBY userprofile:<id> color_<N> 1`
    - Increment global color stats: `INCR stats:color:<color>`
 4. Server publishes update: `PUBLISH canvas:updates <pixel_data>`
 5. Subscriber receives and broadcasts to all clients via Socket.io
@@ -269,26 +269,28 @@ const redisSubscriber = new Redis({
 **Migration Rationale**: The user profile system is being migrated from Redis Hash to Redis JSON for improved performance and functionality.
 
 **Current Hash Limitations:**
+
 - **Inefficient Favorite Color Calculation**: Currently requires 4 operations per pixel placement:
-  1. `HINCRBY user:profile:<id> color_<N> 1` - Increment color usage
-  2. `HGETALL user:profile:<id>` - Retrieve entire profile to find max color
+  1. `HINCRBY userprofile:<id> color_<N> 1` - Increment color usage
+  2. `HGETALL userprofile:<id>` - Retrieve entire profile to find max color
   3. Iterate through all `color_*` fields to find highest count
-  4. `HSET user:profile:<id> favoriteColor <color>` - Update favorite color
+  4. `HSET userprofile:<id> favoriteColor <color>` - Update favorite color
 - **Limited Data Structure Support**: Hash fields cannot store arrays (needed for badges)
 - **Complex Field Parsing**: Converting `color_N` fields back to structured data
 - **Poor Scalability**: More dynamic fields lead to increased parsing overhead
 
 **JSON Benefits:**
+
 - **Reduced Operations**: Only 3 operations needed:
-  1. `JSON.GET user:profile:<id>` - Retrieve profile object
+  1. `JSON.GET userprofile:<id>` - Retrieve profile object
   2. Modify object in application memory (increment color, recalculate favorite, add badges)
-  3. `JSON.SET user:profile:<id> $ <updated_object>` - Atomic update
+  3. `JSON.SET userprofile:<id> $ <updated_object>` - Atomic update
 - **Structured Data Support**: Native support for arrays and nested objects
   ```json
   {
     "pixelsPlaced": 150,
     "favoriteColor": 3,
-    "colorUsage": {"0": 5, "3": 45, "7": 12},
+    "colorUsage": { "0": 5, "3": 45, "7": 12 },
     "badges": ["first_pixel", "color_master", "streak_7days"],
     "firstPixelTime": 1628097234567,
     "lastPixelTime": 1628183634567
@@ -298,7 +300,6 @@ const redisSubscriber = new Redis({
 - **Cleaner Code Logic**: Direct object manipulation vs field name parsing
 - **Better Performance**: Single JSON operation vs multiple hash operations
 - **Future-Proof**: Easy expansion for more data types
-
 
 ## 📈 API Endpoints
 
