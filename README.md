@@ -2,6 +2,44 @@
 
 A collaborative pixel art canvas inspired by Reddit's r/place, built with React, Node.js, and Redis. Users can place colored pixels on a shared 1000x1000 canvas with real-time updates.
 
+It was quite a fun project to build for the August 2025 Redis Hackathon. Check out [the DEV post](https://dev.to/mehdi/redis-place-building-rplace-with-9-redis-data-structures-3lj8) for more details.
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** and **npm** (for frontend and backend)
+- **Redis** instance (local or get one from [Redis Cloud](https://redis.io/cloud/))
+
+### Setup
+
+1. **Clone the repository**:
+
+```bash
+git clone git@github.com:mehdiamrane/redis-place.git
+cd redis-place
+```
+
+2. **Install dependencies**:
+
+```bash
+npm install
+```
+
+3. **Configure environment variables**:
+
+- Copy `backend/.env.example` to `backend/.env` and fill in your Redis connection details
+- Copy `frontend/.env.example` to `frontend/.env` and configure frontend settings
+
+4. **Start the application**:
+
+```bash
+npm run dev
+```
+
+- Backend runs on `http://localhost:3001`
+- Frontend runs on `http://localhost:5173`
+
 ## 🎨 Features
 
 ### Canvas & Interaction
@@ -83,7 +121,7 @@ This project demonstrates multiple advanced Redis features and patterns:
 - **Commands Used**:
   - `BITFIELD canvas:pixels SET u5 <bit_offset> <color_id>`
   - `BITFIELD canvas:pixels GET u5 <bit_offset>`
-- **Color System**: 
+- **Color System**:
   - **ID 0**: Reserved for empty/unplaced pixels (no visual representation)
   - **ID 1-19**: Explicit color mappings (white, grays, black, pinks, reds, oranges, greens, blues, purples, yellows)
   - **ID 20-31**: Reserved for future expansion
@@ -132,7 +170,7 @@ This project demonstrates multiple advanced Redis features and patterns:
   - **Canvas Replay**: Uses native Redis time-based filtering (`XRANGE startTime endTime`) for optimal performance, sorting events chronologically to reconstruct canvas evolution
   - **Pixel Info System**: Intelligent progressive search using `XREVRANGE` with 10k batches and 7-day time windows, only querying colored pixels to avoid unnecessary searches
   - **Event Filtering**: Uses `type` field to distinguish pixel placements from other activities (badges, etc.)
-- **Benefits**: 
+- **Benefits**:
   - Append-only log with automatic ID generation and time ordering
   - Complete audit trail for every pixel placement with user attribution
   - Efficient chronological and reverse-chronological queries
@@ -152,7 +190,7 @@ This project demonstrates multiple advanced Redis features and patterns:
 ### 7. **Hash Map** (`HSET`/`HGETALL`/`HINCRBY`)
 
 - **Purpose**: Color usage statistics and user credential storage
-- **Key Patterns**: 
+- **Key Patterns**:
   - `stats:colors` - Global color usage counters
   - `user:<username>` - User credentials and metadata
 - **Commands Used**:
@@ -249,12 +287,14 @@ const redisSubscriber = new Redis({
 ### Snapshot Generation & Caching
 
 **Optimized Pipeline Processing:**
+
 1. **Bitfield Reading**: Process 1M pixels using 50k-operation pipelines to avoid stack overflow
-2. **Sparse Filtering**: Transform to sparse format by filtering out empty pixels (color ID = 0) 
+2. **Sparse Filtering**: Transform to sparse format by filtering out empty pixels (color ID = 0)
 3. **Redis Caching**: Cache generated snapshots in Redis with automatic invalidation
 4. **Race Condition Handling**: Intelligent polling mechanism prevents duplicate generation
 
 **Performance Optimizations:**
+
 - **Pipeline Size**: 50k operations per batch for optimal Redis performance
 - **Persistent Caching**: Snapshots cached indefinitely until canvas changes
 - **Cache Invalidation**: Automatic cache clearing on pixel placement or canvas operations
