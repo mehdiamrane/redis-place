@@ -69,9 +69,12 @@ class SocketService {
     });
 
     this.socket.on("rate-limited", (data) => {
-      console.log("Rate limited:", data.message);
+      console.log("Socket received rate-limited event:", data);
       if (this.rateLimitedCallback) {
+        console.log("Calling rate-limited callback");
         this.rateLimitedCallback(data);
+      } else {
+        console.log("No rate-limited callback registered");
       }
     });
   }

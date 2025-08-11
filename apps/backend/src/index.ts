@@ -448,6 +448,7 @@ io.on('connection', (socket) => {
       
       // Rate limiting: Check if user is still in cooldown
       const cooldownMs = parseInt(process.env.PIXEL_COOLDOWN_MS || '1000');
+      const backendCooldownMs = cooldownMs - 500; // Subtract 200ms buffer to be more lenient than frontend
       const profileKey = `userprofile:${authenticatedUserId}`;
       
       try {
@@ -458,8 +459,9 @@ io.on('connection', (socket) => {
           
           if (lastPixelTime && typeof lastPixelTime === 'number') {
             const timeSinceLastPixel = Date.now() - lastPixelTime;
-            if (timeSinceLastPixel < cooldownMs) {
-              const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastPixel) / 1000);
+            if (timeSinceLastPixel < backendCooldownMs) {
+              const remainingCooldown = Math.ceil((backendCooldownMs - timeSinceLastPixel) / 1000);
+              console.log(`Rate limiting user ${authResult.username}: ${timeSinceLastPixel}ms < ${backendCooldownMs}ms (${cooldownMs}ms - 500ms buffer)`);
               socket.emit('rate-limited', { 
                 message: `Rate limit exceeded. Try again in ${remainingCooldown}s.`,
                 remainingSeconds: remainingCooldown,

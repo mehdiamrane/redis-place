@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import CanvasPage from "./components/CanvasPage";
 import AnalyticsPage from "./components/AnalyticsPage";
@@ -6,6 +6,7 @@ import BadgesPage from "./components/BadgesPage";
 import ReplayPage from "./components/ReplayPage";
 import ProfilePage from "./components/ProfilePage";
 import AuthModal from "./components/AuthModal";
+import ErrorModal from "./components/ErrorModal";
 import socketService from "./services/socketService";
 import { useAuthStore, useCanvasStore } from "./stores";
 import "./App.css";
@@ -13,6 +14,12 @@ import "./App.css";
 function App() {
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadingStartTimeRef = useRef<number>(Date.now());
+
+  // Error modal state
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; message: string }>({
+    isOpen: false,
+    message: "",
+  });
 
   // Zustand stores
   const authStore = useAuthStore();
@@ -55,9 +62,11 @@ function App() {
     });
 
     socketService.onRateLimited((data) => {
-      console.log("Rate limited, rolling back optimistic update");
+      console.log("Rate limited event received:", data);
+      console.log("Rolling back optimistic update for pixel:", data.x, data.y);
       canvasStore.rollbackPixelPlacement(data.x, data.y);
-      authStore.showModal(data.message);
+      console.log("Setting error modal with message:", data.message);
+      setErrorModal({ isOpen: true, message: data.message });
     });
 
     socketService.connect();
@@ -83,7 +92,6 @@ function App() {
     authStore.hideModal();
   }, [authStore]);
 
-
   return (
     <>
       <Routes>
@@ -100,6 +108,14 @@ function App() {
         onClose={authStore.hideModal}
         message={authStore.authMessage}
         onAuthSuccess={handleAuthSuccess}
+      />
+
+      {/* Error Modal for rate limiting */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        message={errorModal.message}
+        title="Rate Limited"
       />
     </>
   );
