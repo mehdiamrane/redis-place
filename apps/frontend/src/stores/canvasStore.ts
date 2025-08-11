@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import socketService from "../services/socketService";
 
 export interface PlacedPixel {
@@ -30,6 +31,9 @@ export interface CanvasState {
   // Cooldown
   cooldownActive: boolean;
 
+  // Color selection
+  selectedColorId: number;
+
   // Heatmap state
   showHeatmap: boolean;
   heatmapTimeRange: number;
@@ -60,6 +64,9 @@ export interface CanvasActions {
   // Cooldown actions
   setCooldownActive: (active: boolean) => void;
 
+  // Color selection actions
+  setSelectedColorId: (colorId: number) => void;
+
   // Heatmap actions
   setShowHeatmap: (show: boolean) => void;
   setHeatmapTimeRange: (hours: number) => void;
@@ -73,164 +80,181 @@ export interface CanvasActions {
 
 export type CanvasStore = CanvasState & CanvasActions;
 
-export const useCanvasStore = create<CanvasStore>((set, get) => ({
-  // State
-  placedPixels: [],
-  isCanvasLoading: true,
-  loadingMessage: "Connecting to backend...",
-  hoveredPixel: { x: -1, y: -1 },
-  selectedPixel: null,
-  cursorPosition: null,
-  previewColor: null,
-  zoom: 1,
-  pan: { x: 0, y: 0 },
-  connectionStatus: "connecting",
-  cooldownActive: false,
-  showHeatmap: false,
-  heatmapTimeRange: 24,
-  heatmapData: [],
-  maxHeatmapIntensity: 0,
+export const useCanvasStore = create<CanvasStore>()(
+  persist(
+    (set, get) => ({
+      // State
+      placedPixels: [],
+      isCanvasLoading: true,
+      loadingMessage: "Connecting to backend...",
+      hoveredPixel: { x: -1, y: -1 },
+      selectedPixel: null,
+      cursorPosition: null,
+      previewColor: null,
+      zoom: 1,
+      pan: { x: 0, y: 0 },
+      connectionStatus: "connecting",
+      cooldownActive: false,
+      selectedColorId: 5,
+      showHeatmap: false,
+      heatmapTimeRange: 24,
+      heatmapData: [],
+      maxHeatmapIntensity: 0,
 
-  // Actions
-  setPlacedPixels: (pixels: PlacedPixel[]) => {
-    set({ placedPixels: pixels });
-  },
+      // Actions
+      setPlacedPixels: (pixels: PlacedPixel[]) => {
+        set({ placedPixels: pixels });
+      },
 
-  addPixel: (pixel: PlacedPixel) => {
-    set((state) => ({
-      placedPixels: [...state.placedPixels, pixel],
-    }));
-  },
+      addPixel: (pixel: PlacedPixel) => {
+        set((state) => ({
+          placedPixels: [...state.placedPixels, pixel],
+        }));
+      },
 
-  updatePixel: (x: number, y: number, color: string, timestamp: number) => {
-    set((state) => {
-      const filtered = state.placedPixels.filter((pixel) => !(pixel.x === x && pixel.y === y));
-      return {
-        placedPixels: [...filtered, { x, y, color, timestamp }],
-      };
-    });
-  },
+      updatePixel: (x: number, y: number, color: string, timestamp: number) => {
+        set((state) => {
+          const filtered = state.placedPixels.filter((pixel) => !(pixel.x === x && pixel.y === y));
+          return {
+            placedPixels: [...filtered, { x, y, color, timestamp }],
+          };
+        });
+      },
 
-  setCanvasLoading: (loading: boolean, message?: string) => {
-    set({
-      isCanvasLoading: loading,
-      loadingMessage: message || "Loading...",
-    });
-  },
+      setCanvasLoading: (loading: boolean, message?: string) => {
+        set({
+          isCanvasLoading: loading,
+          loadingMessage: message || "Loading...",
+        });
+      },
 
-  setHoveredPixel: (x: number, y: number) => {
-    set({ hoveredPixel: { x, y } });
-  },
+      setHoveredPixel: (x: number, y: number) => {
+        set({ hoveredPixel: { x, y } });
+      },
 
-  setSelectedPixel: (pixel: { x: number; y: number } | null) => {
-    set({ selectedPixel: pixel });
-  },
+      setSelectedPixel: (pixel: { x: number; y: number } | null) => {
+        set({ selectedPixel: pixel });
+      },
 
-  setCursorPosition: (position: { x: number; y: number } | null) => {
-    set({ cursorPosition: position });
-  },
+      setCursorPosition: (position: { x: number; y: number } | null) => {
+        set({ cursorPosition: position });
+      },
 
-  setPreviewColor: (color: string | null) => {
-    set({ previewColor: color });
-  },
+      setPreviewColor: (color: string | null) => {
+        set({ previewColor: color });
+      },
 
-  setZoom: (zoom: number) => {
-    set({ zoom });
-  },
+      setZoom: (zoom: number) => {
+        set({ zoom });
+      },
 
-  setPan: (pan: { x: number; y: number }) => {
-    set({ pan });
-  },
+      setPan: (pan: { x: number; y: number }) => {
+        set({ pan });
+      },
 
-  setConnectionStatus: (status: "connecting" | "connected" | "disconnected") => {
-    set({ connectionStatus: status });
-  },
+      setConnectionStatus: (status: "connecting" | "connected" | "disconnected") => {
+        set({ connectionStatus: status });
+      },
 
-  setCooldownActive: (active: boolean) => {
-    set({ cooldownActive: active });
-  },
+      setCooldownActive: (active: boolean) => {
+        set({ cooldownActive: active });
+      },
 
-  setShowHeatmap: (show: boolean) => {
-    set({ showHeatmap: show });
-  },
+      setSelectedColorId: (colorId: number) => {
+        set({ selectedColorId: colorId });
+      },
 
-  setHeatmapTimeRange: (hours: number) => {
-    set({ heatmapTimeRange: hours });
-  },
+      setShowHeatmap: (show: boolean) => {
+        set({ showHeatmap: show });
+      },
 
-  setHeatmapData: (data: { x: number; y: number; intensity: number }[], maxIntensity: number) => {
-    set({
-      heatmapData: data,
-      maxHeatmapIntensity: maxIntensity,
-    });
-  },
+      setHeatmapTimeRange: (hours: number) => {
+        set({ heatmapTimeRange: hours });
+      },
 
-  placePixel: (color: string) => {
-    const { selectedPixel, cooldownActive } = get();
+      setHeatmapData: (data: { x: number; y: number; intensity: number }[], maxIntensity: number) => {
+        set({
+          heatmapData: data,
+          maxHeatmapIntensity: maxIntensity,
+        });
+      },
 
-    if (!selectedPixel || cooldownActive) {
-      return;
+      placePixel: (color: string) => {
+        const { selectedPixel, cooldownActive } = get();
+
+        if (!selectedPixel || cooldownActive) {
+          return;
+        }
+
+        // Optimistic update: immediately add pixel to local state
+        const optimisticPixel: PlacedPixel = {
+          x: selectedPixel.x,
+          y: selectedPixel.y,
+          color: color,
+          timestamp: Date.now(),
+        };
+
+        // Update local state immediately
+        set((state) => {
+          const filtered = state.placedPixels.filter(
+            (pixel) => !(pixel.x === selectedPixel.x && pixel.y === selectedPixel.y)
+          );
+          return {
+            placedPixels: [...filtered, optimisticPixel],
+            selectedPixel: null,
+          };
+        });
+
+        // Send to server
+        const colorId = socketService.hexToColorId(color);
+        socketService.placePixel(selectedPixel.x, selectedPixel.y, colorId);
+      },
+
+      rollbackPixelPlacement: (x: number, y: number) => {
+        set((state) => {
+          // Remove the optimistically placed pixel and restore previous state
+          const filtered = state.placedPixels.filter((pixel) => !(pixel.x === x && pixel.y === y));
+          return {
+            placedPixels: filtered,
+            cooldownActive: false,
+          };
+        });
+      },
+
+      loadInitialCanvas: async () => {
+        const loadingStartTime = Date.now();
+
+        try {
+          set({ loadingMessage: "Loading canvas snapshot..." });
+          const pixels = await socketService.loadCanvas();
+          set({ placedPixels: pixels });
+        } catch (error) {
+          console.error("Error loading canvas:", error);
+          set({ loadingMessage: "Failed to load canvas" });
+        } finally {
+          // Ensure loading screen shows for at least 1 second
+          const elapsedTime = Date.now() - loadingStartTime;
+          const minDisplayTime = 1000;
+
+          if (elapsedTime < minDisplayTime) {
+            setTimeout(() => {
+              set({ isCanvasLoading: false });
+            }, minDisplayTime - elapsedTime);
+          } else {
+            set({ isCanvasLoading: false });
+          }
+        }
+      },
+    }),
+    {
+      name: "canvas-store",
+      partialize: (state) => ({
+        zoom: state.zoom,
+        pan: state.pan,
+        cursorPosition: state.cursorPosition,
+        selectedPixel: state.selectedPixel,
+        selectedColorId: state.selectedColorId,
+      }),
     }
-
-    // Optimistic update: immediately add pixel to local state
-    const optimisticPixel: PlacedPixel = {
-      x: selectedPixel.x,
-      y: selectedPixel.y,
-      color: color,
-      timestamp: Date.now(),
-    };
-
-    // Update local state immediately
-    set((state) => {
-      const filtered = state.placedPixels.filter(
-        (pixel) => !(pixel.x === selectedPixel.x && pixel.y === selectedPixel.y)
-      );
-      return {
-        placedPixels: [...filtered, optimisticPixel],
-        selectedPixel: null,
-      };
-    });
-
-    // Send to server
-    const colorId = socketService.hexToColorId(color);
-    socketService.placePixel(selectedPixel.x, selectedPixel.y, colorId);
-  },
-
-  rollbackPixelPlacement: (x: number, y: number) => {
-    set((state) => {
-      // Remove the optimistically placed pixel and restore previous state
-      const filtered = state.placedPixels.filter(
-        (pixel) => !(pixel.x === x && pixel.y === y)
-      );
-      return {
-        placedPixels: filtered,
-        cooldownActive: false,
-      };
-    });
-  },
-
-  loadInitialCanvas: async () => {
-    const loadingStartTime = Date.now();
-
-    try {
-      set({ loadingMessage: "Loading canvas snapshot..." });
-      const pixels = await socketService.loadCanvas();
-      set({ placedPixels: pixels });
-    } catch (error) {
-      console.error("Error loading canvas:", error);
-      set({ loadingMessage: "Failed to load canvas" });
-    } finally {
-      // Ensure loading screen shows for at least 1 second
-      const elapsedTime = Date.now() - loadingStartTime;
-      const minDisplayTime = 1000;
-
-      if (elapsedTime < minDisplayTime) {
-        setTimeout(() => {
-          set({ isCanvasLoading: false });
-        }, minDisplayTime - elapsedTime);
-      } else {
-        set({ isCanvasLoading: false });
-      }
-    }
-  },
-}));
+  )
+);

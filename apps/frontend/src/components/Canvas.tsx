@@ -18,6 +18,8 @@ interface CanvasProps {
   selectedPixel: { x: number; y: number } | null;
   onDeselectPixel: () => void;
   previewColor: string | null;
+  zoom: number;
+  pan: { x: number; y: number };
 }
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -31,16 +33,20 @@ const Canvas: React.FC<CanvasProps> = ({
   selectedPixel,
   onDeselectPixel,
   previewColor,
+  zoom: initialZoom,
+  pan: initialPan,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
 
   const pixelSize = 10; // Each logical pixel is rendered as 10x10 screen pixels
+  
+  // Use props directly instead of local state
+  const zoom = initialZoom;
+  const pan = initialPan;
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -184,7 +190,6 @@ const Canvas: React.FC<CanvasProps> = ({
         }
 
         const newPan = constrainPan({ x: pan.x + deltaX, y: pan.y + deltaY });
-        setPan(newPan);
         onPanChange(newPan);
         setDragStart({ x: e.clientX, y: e.clientY });
       } else {
@@ -285,8 +290,6 @@ const Canvas: React.FC<CanvasProps> = ({
       // Constrain the new pan to valid bounds
       const constrainedPan = constrainPan(newPan);
 
-      setZoom(newZoom);
-      setPan(constrainedPan);
       onZoomChange(newZoom);
       onPanChange(constrainedPan);
     },

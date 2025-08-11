@@ -80,7 +80,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
   const canvasStore = useCanvasStore();
   const authStore = useAuthStore();
 
-  const [selectedColorId, setSelectedColorId] = useState(5);
+  // Get selected color from store
+  const selectedColorId = canvasStore.selectedColorId;
   const [cooldownTime, setCooldownTime] = useState(0);
 
   // Get data from stores
@@ -158,7 +159,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
   const handleColorSelect = useCallback(
     (colorId: number) => {
       if (cooldownActive) return; // Don't allow color changes during cooldown
-      setSelectedColorId(colorId);
+      canvasStore.setSelectedColorId(colorId);
 
       // Set color preview in store when pixel is selected
       if (selectedPixel) {
@@ -168,8 +169,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
         }
       }
     },
-    [cooldownActive, selectedPixel]
-  ); // Remove store objects to prevent infinite loop
+    [cooldownActive, selectedPixel, canvasStore]
+  );
 
   // Show cooldown state - but still allow pixel selection for pre-selection
   if (cooldownActive && !selectedPixel) {

@@ -145,6 +145,8 @@ function CanvasPage() {
         onDeselectPixel={handleDeselectPixel}
         previewColor={canvasStore.previewColor}
         placedPixels={canvasStore.placedPixels}
+        zoom={canvasStore.zoom}
+        pan={canvasStore.pan}
       />
 
       <HeatmapOverlay
