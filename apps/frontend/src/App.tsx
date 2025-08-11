@@ -54,6 +54,12 @@ function App() {
       authStore.showModal(message);
     });
 
+    socketService.onRateLimited((data) => {
+      console.log("Rate limited, rolling back optimistic update");
+      canvasStore.rollbackPixelPlacement(data.x, data.y);
+      authStore.showModal(data.message);
+    });
+
     socketService.connect();
 
     socketService.onPixelUpdate((data) => {
@@ -67,6 +73,7 @@ function App() {
       }
       socketService.disconnect();
       socketService.removeAuthRequiredCallback();
+      socketService.removeRateLimitedCallback();
       socketService.removeConnectionStatusCallback();
     };
   }, []); // Empty dependency array - this should only run once on mount

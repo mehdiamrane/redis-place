@@ -27,6 +27,7 @@ interface CanvasSnapshot {
 class SocketService {
   private socket: Socket | null = null;
   private authRequiredCallback: ((message: string) => void) | null = null;
+  private rateLimitedCallback: ((data: { message: string; remainingSeconds: number; x: number; y: number }) => void) | null = null;
   private connectionStatusCallback: ((status: 'connecting' | 'connected' | 'disconnected') => void) | null = null;
 
   connect(): void {
@@ -64,6 +65,13 @@ class SocketService {
       console.log("Authentication required:", data.message);
       if (this.authRequiredCallback) {
         this.authRequiredCallback(data.message);
+      }
+    });
+
+    this.socket.on("rate-limited", (data) => {
+      console.log("Rate limited:", data.message);
+      if (this.rateLimitedCallback) {
+        this.rateLimitedCallback(data);
       }
     });
   }
@@ -168,6 +176,14 @@ class SocketService {
 
   removeAuthRequiredCallback(): void {
     this.authRequiredCallback = null;
+  }
+
+  onRateLimited(callback: (data: { message: string; remainingSeconds: number; x: number; y: number }) => void): void {
+    this.rateLimitedCallback = callback;
+  }
+
+  removeRateLimitedCallback(): void {
+    this.rateLimitedCallback = null;
   }
 
   onConnectionStatusChange(callback: (status: 'connecting' | 'connected' | 'disconnected') => void): void {

@@ -67,6 +67,7 @@ export interface CanvasActions {
 
   // Complex actions
   placePixel: (color: string) => void;
+  rollbackPixelPlacement: (x: number, y: number) => void;
   loadInitialCanvas: () => Promise<void>;
 }
 
@@ -193,9 +194,19 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     // Send to server
     const colorId = socketService.hexToColorId(color);
     socketService.placePixel(selectedPixel.x, selectedPixel.y, colorId);
+  },
 
-    // Clear selection but keep cursor position
-    set({ selectedPixel: null });
+  rollbackPixelPlacement: (x: number, y: number) => {
+    set((state) => {
+      // Remove the optimistically placed pixel and restore previous state
+      const filtered = state.placedPixels.filter(
+        (pixel) => !(pixel.x === x && pixel.y === y)
+      );
+      return {
+        placedPixels: filtered,
+        cooldownActive: false,
+      };
+    });
   },
 
   loadInitialCanvas: async () => {

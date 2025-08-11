@@ -462,7 +462,9 @@ io.on('connection', (socket) => {
               const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastPixel) / 1000);
               socket.emit('rate-limited', { 
                 message: `Rate limit exceeded. Try again in ${remainingCooldown}s.`,
-                remainingSeconds: remainingCooldown
+                remainingSeconds: remainingCooldown,
+                x,
+                y
               });
               return;
             }
