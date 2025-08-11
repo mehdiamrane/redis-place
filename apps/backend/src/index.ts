@@ -446,6 +446,33 @@ io.on('connection', (socket) => {
       // Use authenticated username instead of client-provided userId
       const authenticatedUserId = `user:${authResult.username}`;
       
+      // Rate limiting: Check if user is still in cooldown
+      const cooldownMs = parseInt(process.env.PIXEL_COOLDOWN_MS || '1000');
+      const profileKey = `userprofile:${authenticatedUserId}`;
+      
+      try {
+        const profileData = await redis.call('JSON.GET', profileKey, '$.lastPixelTime') as string | null;
+        if (profileData && profileData !== 'null') {
+          const lastPixelTimeArray = JSON.parse(profileData);
+          const lastPixelTime = Array.isArray(lastPixelTimeArray) ? lastPixelTimeArray[0] : null;
+          
+          if (lastPixelTime && typeof lastPixelTime === 'number') {
+            const timeSinceLastPixel = Date.now() - lastPixelTime;
+            if (timeSinceLastPixel < cooldownMs) {
+              const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastPixel) / 1000);
+              socket.emit('rate-limited', { 
+                message: `Rate limit exceeded. Try again in ${remainingCooldown}s.`,
+                remainingSeconds: remainingCooldown
+              });
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking rate limit:', error);
+        // Continue with pixel placement if rate limit check fails
+      }
+      
       console.log('Setting pixel in Redis...');
       await CanvasManager.setPixel(x, y, color);
       console.log('Pixel set successfully');

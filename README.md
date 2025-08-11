@@ -272,6 +272,16 @@ const redisSubscriber = new Redis({
 - **Session Management**: `SETEX session:<uuid> 2592000 <username>` (30-day sliding expiration)
 - **Security**: bcrypt hashing (cost factor 10), automatic session refresh, secure token revocation
 
+### Rate Limiting
+
+**Redis-backed rate limiting for pixel placement:**
+
+- **Backend Rate Limiting**: Uses `lastPixelTime` field from user profiles to enforce server-side cooldowns
+- **Configuration**: `PIXEL_COOLDOWN_MS` environment variable (default: 1000ms)
+- **Implementation**: Queries `JSON.GET userprofile:<user_id> $` to check cooldown status
+- **Security**: Prevents circumventing frontend cooldowns by enforcing limits at the server level
+- **Frontend Cooldown**: Also configurable via `VITE_PIXEL_COOLDOWN_MS` for client-side UX
+
 ### Real-time Updates & Analytics
 
 1. Client places pixel → WebSocket message to server

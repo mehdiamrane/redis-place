@@ -120,7 +120,8 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
     if (hexColor) {
       canvasStore.placePixel(hexColor);
       canvasStore.setCooldownActive(true);
-      setCooldownTime(10); // 1 second at 100ms intervals
+      const cooldownMs = parseInt(import.meta.env.VITE_PIXEL_COOLDOWN_MS || "1000");
+      setCooldownTime(cooldownMs / 100); // Convert to 100ms intervals
     }
   }, [cooldownActive, selectedPixel, selectedColorId]); // Remove store objects to prevent infinite loop
 
