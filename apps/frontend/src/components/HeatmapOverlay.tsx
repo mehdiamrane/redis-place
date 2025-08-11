@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from "react";
 
 interface HeatmapData {
   x: number;
@@ -16,24 +16,17 @@ interface HeatmapOverlayProps {
   maxIntensity: number;
 }
 
-const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({ 
-  zoom, 
-  pan, 
-  showHeatmap,
-  heatmapData,
-  maxIntensity
-}) => {
+const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({ zoom, pan, showHeatmap, heatmapData, maxIntensity }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   const pixelSize = 10; // Match the main canvas pixel size
   const zoneSize = 50; // Must match backend HEATMAP_ZONE_SIZE
-
 
   const drawHeatmap = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !showHeatmap || maxIntensity === 0) {
       if (canvas) {
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -41,7 +34,7 @@ const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({
       return;
     }
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -50,30 +43,36 @@ const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({
     ctx.scale(zoom, zoom);
 
     // Draw heatmap zones
-    heatmapData.forEach(zone => {
+    heatmapData.forEach((zone) => {
       if (zone.intensity > 0) {
         const normalizedIntensity = zone.intensity / maxIntensity;
-        
-        // Create color gradient: blue (cold) -> green -> yellow -> red (hot)
+
+        // Create color gradient: blue (low) -> yellow (moderate) -> orange (high) -> red (very active)
         let r, g, b;
-        if (normalizedIntensity < 0.5) {
-          // Blue to green
-          const t = normalizedIntensity * 2;
-          r = 0;
-          g = Math.floor(255 * t);
-          b = Math.floor(255 * (1 - t));
+        if (normalizedIntensity < 0.33) {
+          // Blue to yellow
+          const t = normalizedIntensity * 3;
+          r = Math.floor(68 + (255 - 68) * t); // Blue (68) to yellow (255)
+          g = Math.floor(68 + (255 - 68) * t); // Blue (68) to yellow (255)
+          b = Math.floor(255 * (1 - t)); // Blue (255) to yellow (0)
+        } else if (normalizedIntensity < 0.66) {
+          // Yellow to orange
+          const t = (normalizedIntensity - 0.33) * 3;
+          r = Math.floor(255);
+          g = Math.floor(255 * (1 - t * 0.47)); // Transition from 255 to 136 for orange
+          b = 0;
         } else {
-          // Green to red
-          const t = (normalizedIntensity - 0.5) * 2;
-          r = Math.floor(255 * t);
-          g = Math.floor(255 * (1 - t));
+          // Orange to red
+          const t = (normalizedIntensity - 0.66) * 3;
+          r = Math.floor(255);
+          g = Math.floor(136 * (1 - t)); // Transition from 136 to 0 for red
           b = 0;
         }
-        
+
         // Semi-transparent overlay
         const alpha = Math.max(0.2, normalizedIntensity * 0.7);
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        
+
         ctx.fillRect(
           zone.x * zoneSize * pixelSize,
           zone.y * zoneSize * pixelSize,
@@ -85,7 +84,6 @@ const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({
 
     ctx.restore();
   }, [heatmapData, maxIntensity, showHeatmap, zoom, pan, zoneSize, pixelSize]);
-
 
   // Redraw when any relevant props change
   useEffect(() => {
@@ -104,23 +102,23 @@ const HeatmapOverlay: React.FC<HeatmapOverlayProps> = ({
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
   }, [drawHeatmap]);
 
   return (
     <canvas
       ref={canvasRef}
       style={{
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
-        width: '100vw',
-        height: '100vh',
-        pointerEvents: 'none', // Allow clicks to pass through to main canvas
+        width: "100vw",
+        height: "100vh",
+        pointerEvents: "none", // Allow clicks to pass through to main canvas
         zIndex: showHeatmap ? 1 : -1,
         opacity: showHeatmap ? 1 : 0,
-        transition: 'opacity 0.3s ease'
+        transition: "opacity 0.3s ease",
       }}
     />
   );

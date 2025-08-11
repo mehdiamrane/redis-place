@@ -1,103 +1,127 @@
-import styled from 'styled-components';
-import { theme } from '../../styles/theme';
+import styled from "styled-components";
+import { theme } from "../../styles/theme";
 
 export interface HUDPanelProps {
-  position?: 'fixed' | 'absolute' | 'relative';
-  placement?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' | 'top-center' | 'bottom-center';
+  position?: "fixed" | "absolute" | "relative";
+  placement?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "top-center" | "bottom-center";
   offset?: string;
-  background?: 'dark' | 'darker' | 'transparent' | 'status';
-  size?: 'compact' | 'normal' | 'large';
-  shape?: 'rounded' | 'pill' | 'square';
-  layout?: 'column' | 'row';
+  background?: "dark" | "darker" | "transparent" | "status";
+  size?: "compact" | "normal" | "large";
+  shape?: "rounded" | "pill" | "square";
+  layout?: "column" | "row";
   interactive?: boolean;
   title?: string;
+  titleIcon?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
 
-const getPlacementStyles = (placement?: HUDPanelProps['placement'], offset = '20px') => {
+const getPlacementStyles = (placement?: HUDPanelProps["placement"], offset = "20px") => {
   switch (placement) {
-    case 'top-left':
+    case "top-left":
       return { top: offset, left: offset };
-    case 'top-right':
+    case "top-right":
       return { top: offset, right: offset };
-    case 'bottom-left':
+    case "bottom-left":
       return { bottom: offset, left: offset };
-    case 'bottom-right':
+    case "bottom-right":
       return { bottom: offset, right: offset };
-    case 'top-center':
-      return { top: offset, left: '50%', transform: 'translateX(-50%)' };
-    case 'bottom-center':
-      return { bottom: offset, left: '50%', transform: 'translateX(-50%)' };
-    case 'center':
-      return { 
-        top: '50%', 
-        left: '50%', 
-        transform: 'translate(-50%, -50%)' 
+    case "top-center":
+      return { top: offset, left: "50%", transform: "translateX(-50%)" };
+    case "bottom-center":
+      return { bottom: offset, left: "50%", transform: "translateX(-50%)" };
+    case "center":
+      return {
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
       };
     default:
       return {};
   }
 };
 
-const getBackgroundColor = (background?: HUDPanelProps['background']) => {
+const getBackgroundColor = (background?: HUDPanelProps["background"]) => {
   switch (background) {
-    case 'dark':
+    case "dark":
       return theme.colors.overlay;
-    case 'darker':
+    case "darker":
       return theme.colors.modalBackground;
-    case 'transparent':
-      return 'transparent';
-    case 'status':
+    case "transparent":
+      return "transparent";
+    case "status":
       return theme.colors.lightOverlay;
     default:
       return theme.colors.hudBackground;
   }
 };
 
-const getPadding = (size?: HUDPanelProps['size']) => {
+const getPadding = (size?: HUDPanelProps["size"]) => {
   switch (size) {
-    case 'compact':
+    case "compact":
       return `${theme.spacing.xs} ${theme.spacing.sm}`;
-    case 'large':
+    case "large":
       return `${theme.spacing.lg} ${theme.spacing.xl}`;
     default:
       return `${theme.spacing.md}`;
   }
 };
 
-const getBorderRadius = (shape?: HUDPanelProps['shape']) => {
+const getBorderRadius = (shape?: HUDPanelProps["shape"]) => {
   switch (shape) {
-    case 'pill':
+    case "pill":
       return theme.borderRadius.pill;
-    case 'square':
-      return '0';
+    case "square":
+      return "0";
     default:
       return theme.borderRadius.xl;
   }
 };
 
-const StyledHUDPanel = styled.div<HUDPanelProps>`
-  position: ${props => props.position || 'absolute'};
-  ${props => {
-    const placement = getPlacementStyles(props.placement, props.offset);
+interface StyledHUDPanelProps {
+  $position?: "fixed" | "absolute" | "relative";
+  $placement?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "top-center" | "bottom-center";
+  $offset?: string;
+  $background?: "dark" | "darker" | "transparent" | "status";
+  $size?: "compact" | "normal" | "large";
+  $shape?: "rounded" | "pill" | "square";
+  $layout?: "column" | "row";
+  $interactive?: boolean;
+}
+
+const StyledHUDPanel = styled.div<StyledHUDPanelProps>`
+  position: ${(props) => props.$position || "absolute"};
+  ${(props) => {
+    const placement = getPlacementStyles(props.$placement, props.$offset);
     return Object.entries(placement)
       .map(([key, value]) => `${key}: ${value};`)
-      .join('\n  ');
+      .join("\n  ");
   }}
-  background: ${props => getBackgroundColor(props.background)};
+  background: ${(props) => getBackgroundColor(props.$background)};
   color: ${theme.colors.white};
-  padding: ${props => getPadding(props.size)};
-  border-radius: ${props => getBorderRadius(props.shape)};
+  padding: ${(props) => getPadding(props.$size)};
+  border-radius: ${(props) => getBorderRadius(props.$shape)};
   font-family: monospace;
   font-size: ${theme.fontSize.base};
   z-index: ${theme.zIndex.nav};
-  pointer-events: ${props => props.interactive === false ? 'none' : 'auto'};
+  pointer-events: ${(props) => (props.$interactive === false ? "none" : "auto")};
   display: flex;
-  flex-direction: ${props => props.layout === 'row' ? 'row' : 'column'};
-  align-items: ${props => props.layout === 'row' ? 'center' : 'stretch'};
-  gap: ${props => props.size === 'compact' ? theme.spacing.xs : theme.spacing.sm};
+  flex-direction: ${(props) => (props.$layout === "row" ? "row" : "column")};
+  align-items: ${(props) => (props.$layout === "row" ? "center" : "stretch")};
+  gap: ${(props) => (props.$size === "compact" ? theme.spacing.xs : theme.spacing.sm)};
+`;
+
+const HUDTitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: ${theme.spacing.sm};
+
+  svg {
+    font-size: 16px;
+    color: ${theme.colors.white};
+  }
 `;
 
 const HUDTitle = styled.h3`
@@ -108,18 +132,46 @@ const HUDTitle = styled.h3`
   font-family: monospace;
 `;
 
-const HUDContent = styled.div<{ layout?: 'row' | 'column' }>`
+const HUDContent = styled.div<{ $layout?: "row" | "column" }>`
   display: flex;
-  flex-direction: ${props => props.layout === 'row' ? 'row' : 'column'};
-  align-items: ${props => props.layout === 'row' ? 'center' : 'stretch'};
+  flex-direction: ${(props) => (props.$layout === "row" ? "row" : "column")};
+  align-items: ${(props) => (props.$layout === "row" ? "center" : "stretch")};
   gap: inherit;
 `;
 
-export const HUDPanel: React.FC<HUDPanelProps> = ({ children, title, layout, ...props }) => {
+export const HUDPanel: React.FC<HUDPanelProps> = ({
+  children,
+  title,
+  titleIcon,
+  position,
+  placement,
+  offset,
+  background,
+  size,
+  shape,
+  layout,
+  interactive,
+  ...props
+}) => {
   return (
-    <StyledHUDPanel layout={layout} {...props}>
-      {title && <HUDTitle>{title}</HUDTitle>}
-      <HUDContent layout={layout}>{children}</HUDContent>
+    <StyledHUDPanel
+      $position={position}
+      $placement={placement}
+      $offset={offset}
+      $background={background}
+      $size={size}
+      $shape={shape}
+      $layout={layout}
+      $interactive={interactive}
+      {...props}
+    >
+      {title && (
+        <HUDTitleContainer>
+          {titleIcon}
+          <HUDTitle>{title}</HUDTitle>
+        </HUDTitleContainer>
+      )}
+      <HUDContent $layout={layout}>{children}</HUDContent>
     </StyledHUDPanel>
   );
 };
@@ -143,17 +195,17 @@ export const HUDValue = styled.span`
   font-size: ${theme.fontSize.md};
 `;
 
-export const HUDStatusDot = styled.div<{ color: string }>`
+export const HUDStatusDot = styled.div<{ $color: string }>`
   width: 8px;
   height: 8px;
   border-radius: ${theme.borderRadius.round};
-  background-color: ${props => props.color};
+  background-color: ${(props) => props.$color};
   flex-shrink: 0;
 `;
 
-export const HUDGrid = styled.div<{ columns?: number }>`
+export const HUDGrid = styled.div<{ $columns?: number }>`
   display: grid;
-  grid-template-columns: repeat(${props => props.columns || 2}, 1fr);
+  grid-template-columns: repeat(${(props) => props.$columns || 2}, 1fr);
   gap: ${theme.spacing.sm};
 `;
 
@@ -161,7 +213,7 @@ export const HUDSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${theme.spacing.xs};
-  
+
   &:not(:last-child) {
     border-bottom: 1px solid ${theme.colors.gray};
     padding-bottom: ${theme.spacing.sm};

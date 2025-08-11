@@ -171,16 +171,26 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       return;
     }
 
-    // Optimistic update
-    const optimisticPixel = {
+    // Optimistic update: immediately add pixel to local state
+    const optimisticPixel: PlacedPixel = {
       x: selectedPixel.x,
       y: selectedPixel.y,
       color: color,
       timestamp: Date.now(),
     };
 
-    get().updatePixel(selectedPixel.x, selectedPixel.y, color, optimisticPixel.timestamp);
+    // Update local state immediately
+    set((state) => {
+      const filtered = state.placedPixels.filter(
+        (pixel) => !(pixel.x === selectedPixel.x && pixel.y === selectedPixel.y)
+      );
+      return {
+        placedPixels: [...filtered, optimisticPixel],
+        selectedPixel: null,
+      };
+    });
 
+    // Send to server
     const colorId = socketService.hexToColorId(color);
     socketService.placePixel(selectedPixel.x, selectedPixel.y, colorId);
 

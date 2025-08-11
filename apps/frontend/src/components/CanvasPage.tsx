@@ -1,19 +1,16 @@
 import { useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
 import Canvas from "./Canvas";
 import PlacementHUD from "./PlacementHUD";
-import UserProfile from "./UserProfile";
 import HeatmapOverlay from "./HeatmapOverlay";
 import LoadingScreen from "./LoadingScreen";
 import NavigationHeader from "./NavigationHeader";
 import LeftSidebar from "./LeftSidebar";
-import { useAuthStore, useCanvasStore } from "../stores";
+import { useCanvasStore, useAuthStore } from "../stores";
 import { buildApiUrl, API_ENDPOINTS, QUERY_PARAMS } from "../constants/api";
 
 function CanvasPage() {
   const canvasStore = useCanvasStore();
   const authStore = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // Heatmap data fetching logic
   const fetchHeatmapData = useCallback(
@@ -79,6 +76,9 @@ function CanvasPage() {
   // Handle global keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard events if auth modal is open
+      if (authStore.showAuthModal) return;
+
       if (!e.key.startsWith("Arrow")) return;
 
       if (canvasStore.cursorPosition) {
@@ -111,16 +111,7 @@ function CanvasPage() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [canvasStore]);
-
-  // Handle user profile modal via URL params
-  const userProfileParam = searchParams.get("userProfile");
-
-  const handleCloseUserProfile = useCallback(() => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.delete("userProfile");
-    setSearchParams(newSearchParams);
-  }, [searchParams, setSearchParams]);
+  }, [canvasStore, authStore.showAuthModal]);
 
   return (
     <div
@@ -181,11 +172,6 @@ function CanvasPage() {
       />
 
       <PlacementHUD />
-
-      {/* User Profile Modal */}
-      {userProfileParam && authStore.isAuthenticated && (
-        <UserProfile userId={`user:${userProfileParam}`} onClose={handleCloseUserProfile} />
-      )}
     </div>
   );
 }

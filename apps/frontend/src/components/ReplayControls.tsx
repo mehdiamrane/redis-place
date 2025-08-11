@@ -1,5 +1,6 @@
 import React from "react";
 import styled from "styled-components";
+import { LuCalendar, LuVideo } from "react-icons/lu";
 import { HUDPanel, HUDSection, Button } from "./ui";
 import { theme } from "../styles/theme";
 
@@ -37,7 +38,7 @@ const DateInput = styled.input`
   font-size: ${theme.fontSize.sm};
   font-family: monospace;
   min-width: 160px;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -62,30 +63,18 @@ const ReplayControls: React.FC<ReplayControlsProps> = ({
   formatDateForInput,
 }) => {
   return (
-    <HUDPanel
-      position="relative"
-      title="📅 Date Range"
-      style={{ width: "600px" }}
-    >
+    <HUDPanel position="relative" title="Date Range" titleIcon={<LuCalendar />} style={{ width: "600px" }}>
       {/* Main controls row */}
       <HUDSection>
         <MainControls>
           <DateInputGroup>
             <label>From:</label>
-            <DateInput
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-            />
+            <DateInput type="datetime-local" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
           </DateInputGroup>
 
           <DateInputGroup>
             <label>To:</label>
-            <DateInput
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-            />
+            <DateInput type="datetime-local" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
           </DateInputGroup>
 
           <Button
@@ -93,8 +82,9 @@ const ReplayControls: React.FC<ReplayControlsProps> = ({
             size="small"
             onClick={onLoadEvents}
             disabled={loading || !startDate || !endDate}
+            leftElement={<LuVideo />}
           >
-            🎬 Load Replay
+            Load Replay
           </Button>
         </MainControls>
       </HUDSection>

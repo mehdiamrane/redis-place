@@ -50,7 +50,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ status }) => {
         width: 'fit-content'
       }}
     >
-      <HUDStatusDot color={config.color || theme.colors.gray} />
+      <HUDStatusDot $color={config.color || theme.colors.gray} />
       {config.text}
     </HUDPanel>
   );

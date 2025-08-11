@@ -1,5 +1,6 @@
 import React from "react";
 import styled from "styled-components";
+import { LuVideo } from "react-icons/lu";
 import { HUDPanel, HUDRow, HUDLabel, HUDValue, HUDSection } from "./ui";
 import { theme } from "../styles/theme";
 
@@ -42,10 +43,7 @@ const ReplayInfo: React.FC<ReplayInfoProps> = ({ events, displayedPixels }) => {
 
   return (
     <InfoContainer>
-      <HUDPanel
-        position="relative"
-        title="🎬 Canvas Replay"
-      >
+      <HUDPanel position="relative" title="Canvas Replay" titleIcon={<LuVideo />}>
         <HUDRow>
           <HUDLabel>Events:</HUDLabel>
           <HUDValue>{events.length}</HUDValue>

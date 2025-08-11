@@ -14,31 +14,31 @@ const ColorGrid = styled.div`
   max-width: 450px;
 `;
 
-const ColorRow = styled.div<{ itemCount: number }>`
+const ColorRow = styled.div<{ $itemCount: number }>`
   display: flex;
   gap: 8px;
   justify-content: flex-start;
 `;
 
 const ColorSwatch = styled.div<{
-  color: string;
-  selected: boolean;
-  disabled: boolean;
-  colorId: number;
+  $color: string;
+  $selected: boolean;
+  $disabled: boolean;
+  $colorId: number;
 }>`
   width: 38px;
   height: 38px;
-  background-color: ${(props) => props.color};
-  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
-  border: ${(props) => (props.selected ? `3px solid ${theme.colors.white}` : `2px solid ${theme.colors.gray}`)};
+  background-color: ${(props) => props.$color};
+  cursor: ${(props) => (props.$disabled ? "not-allowed" : "pointer")};
+  border: ${(props) => (props.$selected ? `3px solid ${theme.colors.white}` : `2px solid ${theme.colors.gray}`)};
   border-radius: ${theme.borderRadius.md};
   transition: all ${theme.transitions.fast};
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
-  box-shadow: ${(props) => (props.selected ? `0 0 12px ${props.color}40` : "0 2px 4px rgba(0,0,0,0.2)")};
+  opacity: ${(props) => (props.$disabled ? 0.5 : 1)};
+  box-shadow: ${(props) => (props.$selected ? `0 0 12px ${props.$color}40` : "0 2px 4px rgba(0,0,0,0.2)")};
 
   &:hover:not([disabled]) {
     transform: scale(1.1);
@@ -48,8 +48,8 @@ const ColorSwatch = styled.div<{
   span {
     font-size: ${theme.fontSize.xs};
     font-weight: bold;
-    color: ${(props) => (props.colorId === 1 ? theme.colors.dark : theme.colors.white)};
-    text-shadow: ${(props) => (props.colorId === 1 ? "none" : "0px 0px 3px rgba(0,0,0,1)")};
+    color: ${(props) => (props.$colorId === 1 ? theme.colors.dark : theme.colors.white)};
+    text-shadow: ${(props) => (props.$colorId === 1 ? "none" : "0px 0px 3px rgba(0,0,0,1)")};
   }
 `;
 
@@ -94,17 +94,18 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
     let interval: NodeJS.Timeout;
     if (cooldownActive && cooldownTime > 0) {
       interval = setInterval(() => {
-        setCooldownTime((prev) => {
-          if (prev <= 1) {
-            canvasStore.setCooldownActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setCooldownTime((prev) => prev - 1);
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [cooldownActive, cooldownTime, canvasStore]);
+  }, [cooldownActive, cooldownTime]);
+
+  // Separate effect to handle cooldown completion
+  useEffect(() => {
+    if (cooldownTime === 0 && cooldownActive) {
+      canvasStore.setCooldownActive(false);
+    }
+  }, [cooldownTime, cooldownActive, canvasStore]);
 
   const handlePlacePixel = useCallback(() => {
     if (cooldownActive || !selectedPixel) return;
@@ -138,6 +139,9 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
     if (!selectedPixel || cooldownActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard events if auth modal is open
+      if (authStore.showAuthModal) return;
+
       // Enter to paint
       if (e.key === "Enter") {
         e.preventDefault();
@@ -148,7 +152,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPixel, cooldownActive, handlePlacePixel]);
+  }, [selectedPixel, cooldownActive, handlePlacePixel, authStore.showAuthModal]);
 
   const handleColorSelect = useCallback(
     (colorId: number) => {
@@ -204,7 +208,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
       <HUDGroup>
         <HUDLabel style={{ fontSize: theme.fontSize.base, marginBottom: theme.spacing.sm }}>Choose color:</HUDLabel>
         <ColorGrid>
-          <ColorRow itemCount={10}>
+          <ColorRow $itemCount={10}>
             {availableColorIds.slice(0, 10).map((colorId) => {
               const hexColor = colorIdToHex(colorId);
               if (!hexColor) return null;
@@ -212,10 +216,10 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
               return (
                 <ColorSwatch
                   key={colorId}
-                  color={hexColor}
-                  selected={selectedColorId === colorId}
-                  disabled={cooldownActive}
-                  colorId={colorId}
+                  $color={hexColor}
+                  $selected={selectedColorId === colorId}
+                  $disabled={cooldownActive}
+                  $colorId={colorId}
                   onClick={() => handleColorSelect(colorId)}
                 >
                   <span>{colorId}</span>
@@ -223,7 +227,7 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
               );
             })}
           </ColorRow>
-          <ColorRow itemCount={9}>
+          <ColorRow $itemCount={9}>
             {availableColorIds.slice(10).map((colorId) => {
               const hexColor = colorIdToHex(colorId);
               if (!hexColor) return null;
@@ -231,10 +235,10 @@ const PlacementHUD: React.FC<PlacementHUDProps> = () => {
               return (
                 <ColorSwatch
                   key={colorId}
-                  color={hexColor}
-                  selected={selectedColorId === colorId}
-                  disabled={cooldownActive}
-                  colorId={colorId}
+                  $color={hexColor}
+                  $selected={selectedColorId === colorId}
+                  $disabled={cooldownActive}
+                  $colorId={colorId}
                   onClick={() => handleColorSelect(colorId)}
                 >
                   <span>{colorId}</span>

@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
-import AuthService from "../services/authService";
+import styled from "styled-components";
+import { LuTrophy, LuCheck } from "react-icons/lu";
+import { StatsGrid, PageLoader, ErrorPage } from "./layout";
 import NavigationHeader from "./NavigationHeader";
+import AuthService from "../services/authService";
 import { getBadgeEmoji, getBadgeColor } from "../utils/badge";
+import { theme } from "../styles/theme";
 
 interface Badge {
   id: string;
@@ -26,11 +30,137 @@ interface UserProfile {
   badges: string[];
 }
 
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background-color: #1a1a1a;
+  padding: 80px 20px 40px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+`;
+
+const ContentContainer = styled.div`
+  background-color: #2a2a2a;
+  padding: 30px;
+  border-radius: 12px;
+  width: 520px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const Title = styled.h1`
+  margin: 0 0 ${theme.spacing.sm} 0;
+  color: white;
+  font-size: 2rem;
+`;
+
+const Subtitle = styled.div`
+  font-size: ${theme.fontSize.sm};
+  color: #888;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const ProgressText = styled.div`
+  font-size: ${theme.fontSize.sm};
+  color: #888;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const BadgesGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: ${theme.spacing.md};
+  margin-top: ${theme.spacing.lg};
+`;
+
+const BadgeItem = styled.div<{ $isEarned: boolean }>`
+  background-color: ${(props) => (props.$isEarned ? "#2d4a2d" : "#1f1f1f")};
+  padding: 15px;
+  border-radius: 10px;
+  border: ${(props) => (props.$isEarned ? "2px solid #4CAF50" : "1px solid #3a3a3a")};
+  position: relative;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+`;
+
+const EarnedBadge = styled.div`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #4caf50;
+  color: white;
+  padding: 3px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: bold;
+`;
+
+const BadgeHeader = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+`;
+
+const BadgeIcon = styled.div<{ $backgroundColor: string; $isEarned: boolean }>`
+  width: 40px;
+  height: 40px;
+  background-color: ${(props) => props.$backgroundColor};
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 1.2rem;
+  opacity: ${(props) => (props.$isEarned ? 1 : 0.5)};
+`;
+
+const BadgeInfo = styled.div`
+  flex: 1;
+`;
+
+const BadgeTitle = styled.h4<{ $isEarned: boolean }>`
+  margin: 0 0 3px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: ${(props) => (props.$isEarned ? "#4CAF50" : "white")};
+`;
+
+const BadgeDescription = styled.p<{ $isEarned: boolean }>`
+  margin: 0;
+  font-size: 12px;
+  color: #888;
+  opacity: ${(props) => (props.$isEarned ? 1 : 0.7)};
+`;
+
+const ObtainMethod = styled.div<{ $isEarned: boolean }>`
+  background-color: ${(props) => (props.$isEarned ? "#1f3d1f" : "#1a1a1a")};
+  padding: 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #ccc;
+`;
+
 const BadgesPage = () => {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Override body overflow for this page
+  useEffect(() => {
+    document.body.style.overflow = "auto";
+    return () => {
+      document.body.style.overflow = "hidden";
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,193 +193,86 @@ const BadgesPage = () => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "20px",
-          color: "white",
-          backgroundColor: "#1a1a1a",
-          minHeight: "100vh",
-          fontFamily: "Arial, sans-serif",
-        }}
-      >
-        <h1>Loading Badges...</h1>
-      </div>
+      <>
+        <NavigationHeader />
+        <PageLoader message="Loading Badges..." />
+      </>
     );
   }
 
   if (error) {
-    return (
-      <div
-        style={{
-          padding: "20px",
-          color: "white",
-          backgroundColor: "#1a1a1a",
-          minHeight: "100vh",
-          fontFamily: "Arial, sans-serif",
-        }}
-      >
-        <h1>Error: {error}</h1>
-        <button
-          onClick={() => window.location.reload()}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-        >
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorPage error={error} onRetry={() => window.location.reload()} />;
   }
 
   const userBadges = userProfile?.badges || [];
   const earnedCount = userBadges.length;
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        color: "white",
-        backgroundColor: "#1a1a1a",
-        minHeight: "100vh",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
+    <>
       <NavigationHeader />
+      <PageContainer>
+        <ContentContainer>
+          <Header>
+            <Title>
+              <LuTrophy style={{ fontSize: "1.5rem", marginRight: "0.5rem", verticalAlign: "middle" }} />
+              Badge Collection
+            </Title>
+            <Subtitle>Earn badges by placing pixels and exploring the canvas</Subtitle>
+            <ProgressText>
+              Progress: {badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0}% complete
+            </ProgressText>
+          </Header>
 
-      {/* Header */}
-      <div style={{ marginBottom: "20px", marginTop: "80px" }}>
-        <h1>🏆 Badge Collection</h1>
-        <div style={{ fontSize: "14px", color: "#888", marginBottom: "15px" }}>
-          Earn badges by placing pixels and exploring the canvas • You have {earnedCount} of {badges.length} badges
-          <br />
-          Progress: {badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0}% complete
-        </div>
-      </div>
+          <StatsGrid
+            stats={[
+              {
+                value: `${earnedCount}/${badges.length}`,
+                label: "Badges Earned",
+              },
+              {
+                value: userProfile?.pixelsPlaced || 0,
+                label: "Pixels Placed",
+              },
+              {
+                value: userProfile?.colorUsage?.length || 0,
+                label: "Colors Used",
+              },
+            ]}
+            columns={3}
+          />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
-        {/* Summary Stats */}
-        <div style={{ backgroundColor: "#2a2a2a", padding: "20px", borderRadius: "10px" }}>
-          <h2>📊 Badge Progress</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", fontSize: "14px" }}>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{earnedCount}</div>
-              <div style={{ color: "#888" }}>Badges Earned</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>
-                {badges.length - earnedCount}
-              </div>
-              <div style={{ color: "#888" }}>Badges Remaining</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>
-                {userProfile?.pixelsPlaced || 0}
-              </div>
-              <div style={{ color: "#888" }}>Total Pixels Placed</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>
-                {userProfile?.colorUsage?.length || 0}
-              </div>
-              <div style={{ color: "#888" }}>Colors Used</div>
-            </div>
-          </div>
-        </div>
+          <BadgesGrid>
+            {badges.map((badge) => {
+              const isEarned = userBadges.includes(badge.id);
+              return (
+                <BadgeItem key={badge.id} $isEarned={isEarned}>
+                  {isEarned && (
+                    <EarnedBadge>
+                      <LuCheck style={{ fontSize: "12px", marginRight: "3px", verticalAlign: "middle" }} />
+                      EARNED
+                    </EarnedBadge>
+                  )}
 
-        {/* Badges List */}
-        {badges.map((badge) => {
-          const isEarned = userBadges.includes(badge.id);
-          return (
-            <div
-              key={badge.id}
-              style={{
-                backgroundColor: isEarned ? "#2d4a2d" : "#2a2a2a",
-                padding: "20px",
-                borderRadius: "10px",
-                border: isEarned ? "2px solid #4CAF50" : "1px solid #3a3a3a",
-                position: "relative",
-              }}
-            >
-              {isEarned && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "10px",
-                    right: "10px",
-                    backgroundColor: "#4CAF50",
-                    color: "white",
-                    padding: "4px 8px",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  ✓ EARNED
-                </div>
-              )}
+                  <BadgeHeader>
+                    <BadgeIcon $backgroundColor={getBadgeColor(badge.id)} $isEarned={isEarned}>
+                      {getBadgeEmoji(badge.id)}
+                    </BadgeIcon>
+                    <BadgeInfo>
+                      <BadgeTitle $isEarned={isEarned}>{badge.title}</BadgeTitle>
+                      <BadgeDescription $isEarned={isEarned}>{badge.description}</BadgeDescription>
+                    </BadgeInfo>
+                  </BadgeHeader>
 
-              <div style={{ display: "flex", alignItems: "center", marginBottom: "15px" }}>
-                <div
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    backgroundColor: getBadgeColor(badge.id),
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: "15px",
-                    fontSize: "1.5rem",
-                    opacity: isEarned ? 1 : 0.5,
-                  }}
-                >
-                  {getBadgeEmoji(badge.id)}
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      margin: "0 0 5px 0",
-                      fontSize: "18px",
-                      fontWeight: "bold",
-                      color: isEarned ? "#4CAF50" : "white",
-                    }}
-                  >
-                    {badge.title}
-                  </h3>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "14px",
-                      color: "#888",
-                      opacity: isEarned ? 1 : 0.7,
-                    }}
-                  >
-                    {badge.description}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  backgroundColor: isEarned ? "#1f3d1f" : "#1f1f1f",
-                  padding: "10px",
-                  borderRadius: "5px",
-                  fontSize: "12px",
-                  color: "#ccc",
-                }}
-              >
-                <strong>How to earn:</strong> {badge.obtainMethod}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+                  <ObtainMethod $isEarned={isEarned}>
+                    <strong>How to earn:</strong> {badge.obtainMethod}
+                  </ObtainMethod>
+                </BadgeItem>
+              );
+            })}
+          </BadgesGrid>
+        </ContentContainer>
+      </PageContainer>
+    </>
   );
 };
 

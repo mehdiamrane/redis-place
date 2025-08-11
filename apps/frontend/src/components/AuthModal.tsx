@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import AuthService from '../services/authService';
-import { Modal, Button, Input } from './ui';
-import { theme } from '../styles/theme';
+import { useState } from "react";
+import styled from "styled-components";
+import AuthService from "../services/authService";
+import { Modal, Button, Input } from "./ui";
+import { theme } from "../styles/theme";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface AuthModalProps {
 
 const MessageBox = styled.div`
   color: ${theme.colors.gray};
-  margin: ${theme.spacing.sm} 0;
+  margin: ${theme.spacing.sm} 0 ${theme.spacing.lg} 0;
   padding: ${theme.spacing.sm} ${theme.spacing.md};
   background-color: ${theme.colors.infoBackground};
   border-radius: ${theme.borderRadius.md};
@@ -23,11 +23,6 @@ const MessageBox = styled.div`
 const FormContainer = styled.form`
   display: flex;
   flex-direction: column;
-  gap: ${theme.spacing.md};
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
   gap: ${theme.spacing.sm};
 `;
 
@@ -43,7 +38,7 @@ const ToggleButton = styled.button`
   text-decoration: underline;
   cursor: pointer;
   font-size: ${theme.fontSize.base};
-  
+
   &:hover {
     color: ${theme.colors.secondaryHover};
   }
@@ -57,7 +52,7 @@ const RequirementsBox = styled.div`
   border: 1px solid ${theme.colors.successBorder};
   font-size: ${theme.fontSize.base};
   color: #2e7d2e;
-  
+
   ul {
     margin: ${theme.spacing.xs} 0;
     padding-left: ${theme.spacing.lg};
@@ -66,55 +61,50 @@ const RequirementsBox = styled.div`
 
 export default function AuthModal({ isOpen, onClose, message, onAuthSuccess }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const result = isLogin 
+      const result = isLogin
         ? await AuthService.login(username, password)
         : await AuthService.register(username, password);
 
       if (result.success) {
         onAuthSuccess();
         onClose();
-        setUsername('');
-        setPassword('');
+        setUsername("");
+        setPassword("");
       } else {
-        setError(result.error || 'Authentication failed');
+        setError(result.error || "Authentication failed");
       }
     } catch (error) {
-      console.error('Auth error:', error);
-      setError('Network error');
+      console.error("Auth error:", error);
+      setError("Network error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setError('');
-    setUsername('');
-    setPassword('');
+    setError("");
+    setUsername("");
+    setPassword("");
     onClose();
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={handleClose}
-      title={isLogin ? 'Sign In' : 'Create Account'}
-      showCloseButton={false}
-    >
+    <Modal isOpen={isOpen} onClose={handleClose} title={isLogin ? "Sign In" : "Create Account"} showCloseButton={true}>
       {message && <MessageBox>{message}</MessageBox>}
-      
+
       <FormContainer onSubmit={handleSubmit}>
         <Input
           label="Username:"
@@ -127,9 +117,9 @@ export default function AuthModal({ isOpen, onClose, message, onAuthSuccess }: A
           pattern="[a-zA-Z0-9_]+"
           title="Username can only contain letters, numbers, and underscores"
           placeholder="Enter your username"
-          error={error && error.includes('username') ? error : undefined}
+          error={error && error.includes("username") ? error : undefined}
         />
-        
+
         <Input
           label="Password:"
           type="password"
@@ -138,46 +128,32 @@ export default function AuthModal({ isOpen, onClose, message, onAuthSuccess }: A
           required
           minLength={6}
           placeholder="Enter your password"
-          error={error && !error.includes('username') ? error : undefined}
+          error={error && !error.includes("username") ? error : undefined}
         />
-        
-        <ButtonGroup>
-          <Button
-            type="submit"
-            variant="secondary"
-            disabled={loading}
-            style={{ flex: 1 }}
-          >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+
+        <div style={{ marginTop: theme.spacing.md }}>
+          <Button type="submit" variant="secondary" disabled={loading} style={{ width: "100%" }}>
+            {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
           </Button>
-          <Button
-            type="button"
-            variant="gray"
-            onClick={handleClose}
-            disabled={loading}
-            style={{ flex: 1 }}
-          >
-            Cancel
-          </Button>
-        </ButtonGroup>
+        </div>
       </FormContainer>
-      
+
       <ToggleContainer>
         <ToggleButton
           onClick={() => {
             setIsLogin(!isLogin);
-            setError('');
+            setError("");
           }}
         >
           {isLogin ? "Don't have an account? Create one" : "Already have an account? Sign in"}
         </ToggleButton>
       </ToggleContainer>
-      
+
       {!isLogin && (
         <RequirementsBox>
           <strong>Account Requirements:</strong>
           <ul>
-            <li>Username: 3-20 characters, letters/numbers/underscores only</li>
+            <li>Username: 3-20 chars, a-z, 0-9, and underscores only</li>
             <li>Password: At least 6 characters</li>
           </ul>
         </RequirementsBox>

@@ -1,10 +1,10 @@
 import { useEffect, useCallback, useRef } from "react";
-import { Routes, Route, useSearchParams } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import CanvasPage from "./components/CanvasPage";
 import AnalyticsPage from "./components/AnalyticsPage";
 import BadgesPage from "./components/BadgesPage";
 import ReplayPage from "./components/ReplayPage";
-import UserProfile from "./components/UserProfile";
+import ProfilePage from "./components/ProfilePage";
 import AuthModal from "./components/AuthModal";
 import socketService from "./services/socketService";
 import { useAuthStore, useCanvasStore } from "./stores";
@@ -13,7 +13,6 @@ import "./App.css";
 function App() {
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadingStartTimeRef = useRef<number>(Date.now());
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // Zustand stores
   const authStore = useAuthStore();
@@ -70,21 +69,13 @@ function App() {
       socketService.removeAuthRequiredCallback();
       socketService.removeConnectionStatusCallback();
     };
-  }, []);
+  }, []); // Empty dependency array - this should only run once on mount
 
   const handleAuthSuccess = useCallback(async () => {
     await authStore.checkAuth();
     authStore.hideModal();
   }, [authStore]);
 
-  // Handle user profile modal via URL params (global)
-  const userProfileParam = searchParams.get("userProfile");
-
-  const handleCloseUserProfile = useCallback(() => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.delete("userProfile");
-    setSearchParams(newSearchParams);
-  }, [searchParams, setSearchParams]);
 
   return (
     <>
@@ -93,12 +84,8 @@ function App() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/badges" element={<BadgesPage />} />
         <Route path="/replay" element={<ReplayPage />} />
+        <Route path="/profile/:userId" element={<ProfilePage />} />
       </Routes>
-
-      {/* Global User Profile Modal */}
-      {userProfileParam && authStore.isAuthenticated && (
-        <UserProfile userId={`user:${userProfileParam}`} onClose={handleCloseUserProfile} />
-      )}
 
       {/* Global Authentication Modal */}
       <AuthModal

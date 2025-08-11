@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from "react";
 
 interface PlacedPixel {
   x: number;
@@ -12,7 +12,7 @@ interface CanvasProps {
   height: number;
   onPixelHover: (x: number, y: number) => void;
   onZoomChange: (zoom: number) => void;
-  onPanChange: (pan: { x: number, y: number }) => void;
+  onPanChange: (pan: { x: number; y: number }) => void;
   placedPixels: PlacedPixel[];
   onPixelClick: (x: number, y: number) => void;
   selectedPixel: { x: number; y: number } | null;
@@ -20,26 +20,37 @@ interface CanvasProps {
   previewColor: string | null;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChange, onPanChange, placedPixels, onPixelClick, selectedPixel, onDeselectPixel, previewColor }) => {
+const Canvas: React.FC<CanvasProps> = ({
+  width,
+  height,
+  onPixelHover,
+  onZoomChange,
+  onPanChange,
+  placedPixels,
+  onPixelClick,
+  selectedPixel,
+  onDeselectPixel,
+  previewColor,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
-  const [hoveredPixel, setHoveredPixel] = useState<{ x: number, y: number } | null>(null);
-  
+  const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
+
   const pixelSize = 10; // Each logical pixel is rendered as 10x10 screen pixels
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Fill entire canvas with gray background
-    ctx.fillStyle = '#888888';
+    ctx.fillStyle = "#888888";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -47,18 +58,18 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     ctx.scale(zoom, zoom);
 
     // Draw the 1000x1000 white area (scaled by pixelSize)
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width * pixelSize, height * pixelSize);
 
     // Draw border around the 1000x1000 area
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2 / zoom;
     ctx.strokeRect(0, 0, width * pixelSize, height * pixelSize);
 
     // Draw grid lines (always visible now since pixels are larger)
-    ctx.strokeStyle = '#e0e0e0';
+    ctx.strokeStyle = "#e0e0e0";
     ctx.lineWidth = 1 / zoom;
-    
+
     for (let x = 0; x <= width; x++) {
       const pos = x * pixelSize;
       ctx.beginPath();
@@ -66,7 +77,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
       ctx.lineTo(pos, height * pixelSize);
       ctx.stroke();
     }
-    
+
     for (let y = 0; y <= height; y++) {
       const pos = y * pixelSize;
       ctx.beginPath();
@@ -76,204 +87,220 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     }
 
     // Draw placed pixels (skip the selected pixel if there's a preview)
-    placedPixels.forEach(pixel => {
+    placedPixels.forEach((pixel) => {
       // Skip drawing the underlying pixel if we're showing a preview at this position
-      if (selectedPixel && previewColor && 
-          pixel.x === selectedPixel.x && pixel.y === selectedPixel.y) {
+      if (selectedPixel && previewColor && pixel.x === selectedPixel.x && pixel.y === selectedPixel.y) {
         return;
       }
-      
+
       ctx.fillStyle = pixel.color;
-      ctx.fillRect(
-        pixel.x * pixelSize, 
-        pixel.y * pixelSize, 
-        pixelSize, 
-        pixelSize
-      );
+      ctx.fillRect(pixel.x * pixelSize, pixel.y * pixelSize, pixelSize, pixelSize);
     });
 
     // Show color preview on selected pixel with more noticeable opacity
     if (selectedPixel && previewColor) {
       ctx.globalAlpha = 0.4;
       ctx.fillStyle = previewColor;
-      ctx.fillRect(
-        selectedPixel.x * pixelSize, 
-        selectedPixel.y * pixelSize, 
-        pixelSize, 
-        pixelSize
-      );
+      ctx.fillRect(selectedPixel.x * pixelSize, selectedPixel.y * pixelSize, pixelSize, pixelSize);
       ctx.globalAlpha = 1.0;
     }
 
     // Highlight selected pixel with red outline
     if (selectedPixel) {
-      ctx.strokeStyle = '#ff0000';
+      ctx.strokeStyle = "#ff0000";
       ctx.lineWidth = 3 / zoom;
-      ctx.strokeRect(
-        selectedPixel.x * pixelSize, 
-        selectedPixel.y * pixelSize, 
-        pixelSize, 
-        pixelSize
-      );
+      ctx.strokeRect(selectedPixel.x * pixelSize, selectedPixel.y * pixelSize, pixelSize, pixelSize);
     }
-    
+
     // Note: Cursor position is now always the same as selected pixel, so no separate cursor visualization needed
 
     // Highlight hovered pixel with lighter outline (only if different from selected pixel)
-    if (hoveredPixel && 
-        (!selectedPixel || hoveredPixel.x !== selectedPixel.x || hoveredPixel.y !== selectedPixel.y)) {
-      ctx.strokeStyle = '#ff6666';
+    if (hoveredPixel && (!selectedPixel || hoveredPixel.x !== selectedPixel.x || hoveredPixel.y !== selectedPixel.y)) {
+      ctx.strokeStyle = "#ff6666";
       ctx.lineWidth = 2 / zoom;
-      ctx.strokeRect(
-        hoveredPixel.x * pixelSize, 
-        hoveredPixel.y * pixelSize, 
-        pixelSize, 
-        pixelSize
-      );
+      ctx.strokeRect(hoveredPixel.x * pixelSize, hoveredPixel.y * pixelSize, pixelSize, pixelSize);
     }
 
     ctx.restore();
   }, [width, height, zoom, pan, hoveredPixel, placedPixels, selectedPixel, previewColor]);
 
-  const getPixelCoordinates = useCallback((clientX: number, clientY: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
+  const getPixelCoordinates = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
 
-    const rect = canvas.getBoundingClientRect();
-    const canvasX = clientX - rect.left;
-    const canvasY = clientY - rect.top;
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = clientX - rect.left;
+      const canvasY = clientY - rect.top;
 
-    const pixelX = Math.floor((canvasX - pan.x) / (zoom * pixelSize));
-    const pixelY = Math.floor((canvasY - pan.y) / (zoom * pixelSize));
+      const pixelX = Math.floor((canvasX - pan.x) / (zoom * pixelSize));
+      const pixelY = Math.floor((canvasY - pan.y) / (zoom * pixelSize));
 
-    if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height) {
-      return { x: pixelX, y: pixelY };
-    }
-    return null;
-  }, [zoom, pan, width, height, pixelSize]);
+      if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height) {
+        return { x: pixelX, y: pixelY };
+      }
+      return null;
+    },
+    [zoom, pan, width, height, pixelSize]
+  );
 
-  const constrainPan = useCallback((newPan: { x: number, y: number }) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return newPan;
+  const constrainPan = useCallback(
+    (newPan: { x: number; y: number }) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return newPan;
 
-    const canvasPixelWidth = width * pixelSize * zoom;
-    const canvasPixelHeight = height * pixelSize * zoom;
-    
-    // Ensure at least 100 pixels of the canvas are always visible
-    const minVisibleArea = 100;
-    
-    const maxPanX = canvas.width - minVisibleArea;
-    const minPanX = -canvasPixelWidth + minVisibleArea;
-    const maxPanY = canvas.height - minVisibleArea;
-    const minPanY = -canvasPixelHeight + minVisibleArea;
+      const canvasPixelWidth = width * pixelSize * zoom;
+      const canvasPixelHeight = height * pixelSize * zoom;
 
-    return {
-      x: Math.max(minPanX, Math.min(maxPanX, newPan.x)),
-      y: Math.max(minPanY, Math.min(maxPanY, newPan.y))
-    };
-  }, [width, height, pixelSize, zoom]);
+      // Ensure at least 100 pixels of the canvas are always visible
+      const minVisibleArea = 100;
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging) {
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      
-      // Check if we actually moved
-      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
-        setHasMoved(true);
-        // Deselect pixel when starting to drag
-        if (!hasMoved) {
-          onDeselectPixel();
+      const maxPanX = canvas.width - minVisibleArea;
+      const minPanX = -canvasPixelWidth + minVisibleArea;
+      const maxPanY = canvas.height - minVisibleArea;
+      const minPanY = -canvasPixelHeight + minVisibleArea;
+
+      return {
+        x: Math.max(minPanX, Math.min(maxPanX, newPan.x)),
+        y: Math.max(minPanY, Math.min(maxPanY, newPan.y)),
+      };
+    },
+    [width, height, pixelSize, zoom]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isDragging) {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+
+        // Check if we actually moved
+        if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+          setHasMoved(true);
+          // Deselect pixel when starting to drag
+          if (!hasMoved) {
+            onDeselectPixel();
+          }
+        }
+
+        const newPan = constrainPan({ x: pan.x + deltaX, y: pan.y + deltaY });
+        setPan(newPan);
+        onPanChange(newPan);
+        setDragStart({ x: e.clientX, y: e.clientY });
+      } else {
+        const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
+        if (pixelCoords) {
+          setHoveredPixel(pixelCoords);
+          onPixelHover(pixelCoords.x, pixelCoords.y);
+        } else {
+          setHoveredPixel(null);
+          onPixelHover(-1, -1);
         }
       }
-      
-      const newPan = constrainPan({ x: pan.x + deltaX, y: pan.y + deltaY });
-      setPan(newPan);
-      onPanChange(newPan);
-      setDragStart({ x: e.clientX, y: e.clientY });
-    } else {
-      const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
-      if (pixelCoords) {
-        setHoveredPixel(pixelCoords);
-        onPixelHover(pixelCoords.x, pixelCoords.y);
-      } else {
-        setHoveredPixel(null);
-        onPixelHover(-1, -1);
-      }
-    }
-  }, [isDragging, dragStart, pan, constrainPan, getPixelCoordinates, onPixelHover, hasMoved, onDeselectPixel, onPanChange]);
+    },
+    [
+      isDragging,
+      dragStart,
+      pan,
+      constrainPan,
+      getPixelCoordinates,
+      onPixelHover,
+      hasMoved,
+      onDeselectPixel,
+      onPanChange,
+    ]
+  );
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 0) { // Left click
+    if (e.button === 0) {
+      // Left click
       setIsDragging(true);
       setHasMoved(false);
       setDragStart({ x: e.clientX, y: e.clientY });
     }
   }, []);
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
-    if (pixelCoords) {
-      onPixelClick(pixelCoords.x, pixelCoords.y);
-    }
-  }, [getPixelCoordinates, onPixelClick]);
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const pixelCoords = getPixelCoordinates(e.clientX, e.clientY);
+      if (pixelCoords) {
+        onPixelClick(pixelCoords.x, pixelCoords.y);
+      }
+    },
+    [getPixelCoordinates, onPixelClick]
+  );
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    const wasMoving = hasMoved;
-    setIsDragging(false);
-    setHasMoved(false);
-    
-    // Only trigger click if we weren't actually dragging (moving)
-    if (!wasMoving) {
-      handleClick(e);
-    }
-  }, [hasMoved, handleClick]);
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      const wasMoving = hasMoved;
+      setIsDragging(false);
+      setHasMoved(false);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    
+      // Only trigger click if we weren't actually dragging (moving)
+      if (!wasMoving) {
+        handleClick(e);
+      }
+    },
+    [hasMoved, handleClick]
+  );
+
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.1, Math.min(50, zoom * delta));
+
+      // Determine zoom center priority: selected pixel > hovered pixel > cursor position
+      let zoomCenterX, zoomCenterY;
+
+      if (selectedPixel) {
+        // Center on selected pixel
+        zoomCenterX = (selectedPixel.x + 0.5) * pixelSize * zoom + pan.x;
+        zoomCenterY = (selectedPixel.y + 0.5) * pixelSize * zoom + pan.y;
+      } else if (hoveredPixel) {
+        // Center on hovered pixel
+        zoomCenterX = (hoveredPixel.x + 0.5) * pixelSize * zoom + pan.x;
+        zoomCenterY = (hoveredPixel.y + 0.5) * pixelSize * zoom + pan.y;
+      } else {
+        // Center on cursor position
+        const rect = canvas.getBoundingClientRect();
+        zoomCenterX = e.clientX - rect.left;
+        zoomCenterY = e.clientY - rect.top;
+      }
+
+      // Calculate world position at zoom center before zoom
+      const worldX = (zoomCenterX - pan.x) / zoom;
+      const worldY = (zoomCenterY - pan.y) / zoom;
+
+      // Calculate new pan to keep the same world position at the zoom center
+      const newPan = {
+        x: zoomCenterX - worldX * newZoom,
+        y: zoomCenterY - worldY * newZoom,
+      };
+
+      // Constrain the new pan to valid bounds
+      const constrainedPan = constrainPan(newPan);
+
+      setZoom(newZoom);
+      setPan(constrainedPan);
+      onZoomChange(newZoom);
+      onPanChange(constrainedPan);
+    },
+    [zoom, pan, selectedPixel, hoveredPixel, onZoomChange, onPanChange, constrainPan, pixelSize]
+  );
+
+  // Add wheel event listener with passive: false to allow preventDefault
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(50, zoom * delta));
-    
-    // Determine zoom center priority: selected pixel > hovered pixel > cursor position
-    let zoomCenterX, zoomCenterY;
-    
-    if (selectedPixel) {
-      // Center on selected pixel
-      zoomCenterX = (selectedPixel.x + 0.5) * pixelSize * zoom + pan.x;
-      zoomCenterY = (selectedPixel.y + 0.5) * pixelSize * zoom + pan.y;
-    } else if (hoveredPixel) {
-      // Center on hovered pixel
-      zoomCenterX = (hoveredPixel.x + 0.5) * pixelSize * zoom + pan.x;
-      zoomCenterY = (hoveredPixel.y + 0.5) * pixelSize * zoom + pan.y;
-    } else {
-      // Center on cursor position
-      const rect = canvas.getBoundingClientRect();
-      zoomCenterX = e.clientX - rect.left;
-      zoomCenterY = e.clientY - rect.top;
-    }
-
-    // Calculate world position at zoom center before zoom
-    const worldX = (zoomCenterX - pan.x) / zoom;
-    const worldY = (zoomCenterY - pan.y) / zoom;
-
-    // Calculate new pan to keep the same world position at the zoom center
-    const newPan = {
-      x: zoomCenterX - worldX * newZoom,
-      y: zoomCenterY - worldY * newZoom
-    };
-
-    // Constrain the new pan to valid bounds
-    const constrainedPan = constrainPan(newPan);
-    
-    setZoom(newZoom);
-    setPan(constrainedPan);
-    onZoomChange(newZoom);
-    onPanChange(constrainedPan);
-  }, [zoom, pan, selectedPixel, hoveredPixel, onZoomChange, onPanChange, constrainPan, pixelSize]);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   useEffect(() => {
     const resizeCanvas = () => {
@@ -286,8 +313,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
   }, [drawCanvas]);
 
   useEffect(() => {
@@ -296,14 +323,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
 
   useEffect(() => {
     const handleMouseUpGlobal = () => setIsDragging(false);
-    
+
     // Handle escape key to deselect pixel
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedPixel) {
+      if (e.key === "Escape" && selectedPixel) {
         onDeselectPixel();
       }
     };
-    
+
     // Prevent browser zoom on Ctrl+scroll and pinch gestures
     const preventZoom = (e: WheelEvent | TouchEvent) => {
       if ((e as WheelEvent).ctrlKey || (e as TouchEvent).touches?.length > 1) {
@@ -311,16 +338,16 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
       }
     };
 
-    document.addEventListener('mouseup', handleMouseUpGlobal);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('wheel', preventZoom, { passive: false });
-    document.addEventListener('touchmove', preventZoom, { passive: false });
-    
+    document.addEventListener("mouseup", handleMouseUpGlobal);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("wheel", preventZoom, { passive: false });
+    document.addEventListener("touchmove", preventZoom, { passive: false });
+
     return () => {
-      document.removeEventListener('mouseup', handleMouseUpGlobal);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('wheel', preventZoom);
-      document.removeEventListener('touchmove', preventZoom);
+      document.removeEventListener("mouseup", handleMouseUpGlobal);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", preventZoom);
+      document.removeEventListener("touchmove", preventZoom);
     };
   }, [selectedPixel, onDeselectPixel]);
 
@@ -328,15 +355,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, onPixelHover, onZoomChan
     <canvas
       ref={canvasRef}
       style={{
-        display: 'block',
-        cursor: isDragging ? 'grabbing' : 'grab',
-        width: '100vw',
-        height: '100vh'
+        display: "block",
+        cursor: isDragging ? "grabbing" : "grab",
+        width: "100vw",
+        height: "100vh",
       }}
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
     />
   );
 };

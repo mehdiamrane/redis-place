@@ -1,5 +1,6 @@
-import styled from 'styled-components';
-import { theme } from '../../styles/theme';
+import { useEffect, useRef } from "react";
+import styled from "styled-components";
+import { theme } from "../../styles/theme";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -10,35 +11,41 @@ export interface ModalProps {
   maxWidth?: string;
 }
 
-const ModalOverlay = styled.div<{ isOpen: boolean }>`
+const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: ${theme.colors.lightOverlay};
-  display: ${props => props.isOpen ? 'flex' : 'none'};
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  display: ${(props) => (props.$isOpen ? "flex" : "none")};
   align-items: center;
   justify-content: center;
   z-index: ${theme.zIndex.modal};
 `;
 
-const ModalContent = styled.div<{ maxWidth?: string }>`
-  background-color: ${theme.colors.white};
+const ModalContent = styled.div<{ $maxWidth?: string }>`
+  background-color: white;
   padding: ${theme.spacing.xl};
-  border-radius: ${theme.borderRadius.xxl};
-  width: 400px;
-  max-width: ${props => props.maxWidth || '90vw'};
+  border-radius: ${theme.borderRadius.lg};
+  width: 500px;
+  max-width: ${(props) => props.$maxWidth || "90vw"};
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   position: relative;
+
+  /* Hide scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: relative;
   margin-bottom: ${theme.spacing.lg};
 `;
 
@@ -49,16 +56,27 @@ const ModalTitle = styled.h2`
 `;
 
 const CloseButton = styled.button`
-  background: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.05);
   border: none;
-  font-size: ${theme.fontSize.lg};
+  font-size: 18px;
   cursor: pointer;
   color: ${theme.colors.gray};
-  padding: ${theme.spacing.xs};
-  border-radius: ${theme.borderRadius.sm};
-  
+  padding: 8px;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
   &:hover {
-    background-color: ${theme.colors.lightestGray};
+    background-color: rgba(0, 0, 0, 0.1);
+    color: ${theme.colors.dark};
+    transform: scale(1.05);
   }
 `;
 
@@ -66,32 +84,73 @@ const ModalBody = styled.div`
   color: ${theme.colors.dark};
 `;
 
-export const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  children, 
-  title, 
-  showCloseButton = true,
-  maxWidth 
-}) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, showCloseButton = true, maxWidth }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Focus first input when modal opens (separate effect to avoid refocusing during typing)
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        const firstInput = modalRef.current?.querySelector("input") as HTMLElement;
+        firstInput?.focus();
+      }, 0);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Trap focus within the modal
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle specific keys, let input fields handle their own typing
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (!focusableElements || focusableElements.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <ModalOverlay isOpen={isOpen} onClick={onClose}>
-      <ModalContent maxWidth={maxWidth} onClick={(e) => e.stopPropagation()}>
+    <ModalOverlay $isOpen={isOpen} onClick={onClose}>
+      <ModalContent ref={modalRef} $maxWidth={maxWidth} onClick={(e) => e.stopPropagation()} tabIndex={-1}>
         {(title || showCloseButton) && (
           <ModalHeader>
             {title && <ModalTitle>{title}</ModalTitle>}
-            {showCloseButton && (
-              <CloseButton onClick={onClose}>
-                ✕
-              </CloseButton>
-            )}
+            {showCloseButton && <CloseButton onClick={onClose}>✕</CloseButton>}
           </ModalHeader>
         )}
-        <ModalBody>
-          {children}
-        </ModalBody>
+        <ModalBody>{children}</ModalBody>
       </ModalContent>
     </ModalOverlay>
   );

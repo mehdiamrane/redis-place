@@ -1,4 +1,6 @@
 import React from "react";
+import { LuTriangleAlert, LuRefreshCw } from "react-icons/lu";
+import { Button } from "./ui";
 
 interface LoadingScreenProps {
   message: string;
@@ -29,7 +31,9 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message, connectionStatus
           fontFamily: "system-ui, Avenir, Helvetica, Arial, sans-serif",
         }}
       >
-        <div style={{ fontSize: "60px", marginBottom: "20px" }}>⚠️</div>
+        <div style={{ fontSize: "60px", marginBottom: "20px", color: "#ff9800" }}>
+          <LuTriangleAlert />
+        </div>
         <h2
           style={{
             margin: 0,
@@ -65,24 +69,9 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message, connectionStatus
             ? "The server may be down. Please try again later or refresh the page"
             : "Please check your internet connection and refresh the page"}
         </p>
-        <button
-          onClick={onRefresh}
-          style={{
-            padding: "12px 24px",
-            background: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "16px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            transition: "background 0.3s",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.background = "#45a049")}
-          onMouseOut={(e) => (e.currentTarget.style.background = "#4CAF50")}
-        >
-          🔄 Refresh Page
-        </button>
+        <Button variant="success" size="large" onClick={onRefresh} leftElement={<LuRefreshCw />}>
+          Refresh Page
+        </Button>
       </div>
     );
   }
@@ -105,7 +94,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message, connectionStatus
         fontFamily: "system-ui, Avenir, Helvetica, Arial, sans-serif",
       }}
     >
-      <div style={{ fontSize: "60px", marginBottom: "20px" }}>🎨</div>
       <div
         style={{
           width: "40px",

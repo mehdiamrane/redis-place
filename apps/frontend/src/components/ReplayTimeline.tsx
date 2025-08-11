@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
-import { HUDPanel, HUDRow, HUDLabel, HUDValue, HUDSection, HUDGroup, Button } from "./ui";
+import { LuSkipBack, LuSkipForward, LuPlay, LuPause, LuRotateCcw, LuClock } from "react-icons/lu";
+import { HUDPanel, HUDRow, HUDLabel, HUDValue, Button } from "./ui";
 import { theme } from "../styles/theme";
 
 interface ReplayEvent {
@@ -61,7 +62,7 @@ const SpeedSelect = styled.select`
   border-radius: ${theme.borderRadius.sm};
   font-size: ${theme.fontSize.sm};
   font-family: monospace;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -79,7 +80,6 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
   onPlaybackSpeedChange,
   onReset,
 }) => {
-
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleString();
@@ -104,7 +104,7 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
     onEventIndexChange(index);
   };
 
-  const speedOptions = [0.5, 1, 2, 5, 10];
+  const speedOptions = [1, 2, 5, 10];
 
   const progress = events.length > 0 ? (currentEventIndex / (events.length - 1)) * 100 : 0;
   const currentEvent = events[currentEventIndex];
@@ -115,22 +115,22 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
   const elapsedDuration = currentTime - startTime;
 
   return (
-    <HUDPanel
-      position="relative"
-      title="⏯ Timeline Controls"
-      style={{ minWidth: "600px" }}
-    >
+    <HUDPanel position="relative" title="Timeline Controls" titleIcon={<LuClock />} style={{ minWidth: "600px" }}>
       {/* Progress Info and Current Event Info - Combined */}
       <HUDRow>
-        <HUDValue>Event {currentEventIndex + 1} of {events.length}</HUDValue>
-        <HUDValue>{formatDuration(elapsedDuration)} / {formatDuration(totalDuration)}</HUDValue>
+        <HUDValue>
+          Event {currentEventIndex + 1} of {events.length}
+        </HUDValue>
+        <HUDValue>
+          {formatDuration(elapsedDuration)} / {formatDuration(totalDuration)}
+        </HUDValue>
       </HUDRow>
 
       {/* Current Event Details */}
       {currentEvent && (
         <CurrentEventInfo>
-          User: {currentEvent.userId} • Pixel ({currentEvent.x}, {currentEvent.y}) •{" "}
-          {formatTimestamp(currentEvent.timestamp)}
+          User: {currentEvent.userId.startsWith("user:") ? currentEvent.userId.substring(5) : currentEvent.userId} •
+          Pixel ({currentEvent.x}, {currentEvent.y}) • {formatTimestamp(currentEvent.timestamp)}
         </CurrentEventInfo>
       )}
 
@@ -149,12 +149,8 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
 
       {/* Controls */}
       <ControlsGrid>
-        <Button
-          variant="danger"
-          size="small"
-          onClick={onReset}
-        >
-          ⏮ Reset
+        <Button variant="danger" size="small" onClick={onReset} leftElement={<LuRotateCcw />}>
+          Reset
         </Button>
 
         <Button
@@ -162,8 +158,9 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
           size="small"
           onClick={() => onEventIndexChange(Math.max(0, currentEventIndex - 1))}
           disabled={currentEventIndex === 0}
+          leftElement={<LuSkipBack />}
         >
-          ⏪ Step
+          Step
         </Button>
 
         <Button
@@ -171,8 +168,9 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
           size="small"
           onClick={onPlayPause}
           disabled={events.length === 0}
+          leftElement={isPlaying ? <LuPause /> : <LuPlay />}
         >
-          {isPlaying ? "⏸ Pause" : "▶ Play"}
+          {isPlaying ? "Pause" : "Play"}
         </Button>
 
         <Button
@@ -180,16 +178,14 @@ const ReplayTimeline: React.FC<ReplayTimelineProps> = ({
           size="small"
           onClick={() => onEventIndexChange(Math.min(events.length - 1, currentEventIndex + 1))}
           disabled={currentEventIndex === events.length - 1}
+          rightElement={<LuSkipForward />}
         >
-          Step ⏩
+          Step
         </Button>
 
         <SpeedControl>
           <HUDLabel>Speed:</HUDLabel>
-          <SpeedSelect
-            value={playbackSpeed}
-            onChange={(e) => onPlaybackSpeedChange(parseFloat(e.target.value))}
-          >
+          <SpeedSelect value={playbackSpeed} onChange={(e) => onPlaybackSpeedChange(parseFloat(e.target.value))}>
             {speedOptions.map((speed) => (
               <option key={speed} value={speed}>
                 {speed}x

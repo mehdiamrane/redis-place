@@ -7,7 +7,8 @@ import ReplayControlsContainer from "./ReplayControlsContainer";
 import ReplayInfo from "./ReplayInfo";
 import ReplayNoEventsMessage from "./ReplayNoEventsMessage";
 import NavigationHeader from "./NavigationHeader";
-import { HUDPanel } from "./ui";
+import { HUDPanel, Button } from "./ui";
+import { LuX, LuRefreshCw, LuLoader } from "react-icons/lu";
 import { theme } from "../styles/theme";
 import { colorIdToHex } from "@redis-place/shared";
 
@@ -17,6 +18,15 @@ const LoadingOverlay = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: ${theme.zIndex.modal};
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const LoadingContent = styled.div`
@@ -88,13 +98,13 @@ const ReplayPage: React.FC = () => {
       }
 
       const data = await response.json();
-      
+
       // Calculate remaining time to show loading for at least 1 second
       const loadingDuration = Date.now() - loadingStartTime;
       const remainingTime = Math.max(0, 1000 - loadingDuration);
-      
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
       setEvents(data.events || []);
       setCurrentEventIndex(0);
       setDisplayedPixels([]);
@@ -207,7 +217,6 @@ const ReplayPage: React.FC = () => {
     loadEvents(start, end);
   }, [loadEvents, startDate, endDate]);
 
-
   if (error) {
     return (
       <div
@@ -221,25 +230,21 @@ const ReplayPage: React.FC = () => {
           color: "#f44336",
         }}
       >
-        <div style={{ marginBottom: "20px" }}>❌ Error loading replay data</div>
+        <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <LuX style={{ fontSize: "24px" }} /> Error loading replay data
+        </div>
         {error && <div style={{ marginBottom: "20px" }}>{error}</div>}
         <div style={{ marginBottom: "20px", fontSize: "14px", color: "#666" }}>
           Please try again or check your date range.
         </div>
-        <button
+        <Button
+          variant="secondary"
+          size="medium"
           onClick={() => window.location.reload()}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#2196F3",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-            fontSize: "14px",
-          }}
+          leftElement={<LuRefreshCw />}
         >
-          🔄 Refresh page
-        </button>
+          Refresh Page
+        </Button>
       </div>
     );
   }
@@ -255,9 +260,9 @@ const ReplayPage: React.FC = () => {
       <ReplayInfo events={events} displayedPixels={displayedPixels} />
 
       {events.length > 0 && !loading && (
-        <ReplayCanvas 
-          width={1000} 
-          height={1000} 
+        <ReplayCanvas
+          width={1000}
+          height={1000}
           placedPixels={displayedPixels}
           currentEvent={events[currentEventIndex]}
           autoCenterOnPixel={true}
@@ -269,7 +274,12 @@ const ReplayPage: React.FC = () => {
       {loading && (
         <LoadingOverlay>
           <HUDPanel position="relative">
-            <LoadingContent>🔄 Loading replay data...</LoadingContent>
+            <LoadingContent>
+              <div style={{ marginBottom: "8px" }}>
+                <LuLoader style={{ fontSize: "32px", animation: "spin 1s linear infinite" }} />
+              </div>
+              Loading replay data...
+            </LoadingContent>
             <LoadingSubtext>This might take a moment for large datasets</LoadingSubtext>
           </HUDPanel>
         </LoadingOverlay>

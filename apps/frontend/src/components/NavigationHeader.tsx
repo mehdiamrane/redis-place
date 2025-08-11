@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { LuPalette, LuTrophy, LuTrendingUp, LuVideo, LuUser, LuKey, LuLogOut } from "react-icons/lu";
 import { useAuthStore } from "../stores";
 import { HUDPanel, HUDSection, HUDGroup, Button } from "./ui";
 import { theme } from "../styles/theme";
@@ -12,11 +13,11 @@ const NavigationContainer = styled.div`
   z-index: ${theme.zIndex.nav};
 `;
 
-const NavButton = styled(Button)<{ isActive: boolean }>`
+const NavButton = styled(Button)<{ $isActive: boolean }>`
   flex: 1;
   justify-content: center;
   text-align: center;
-  cursor: ${(props) => (props.isActive ? "default" : "pointer")};
+  cursor: ${(props) => (props.$isActive ? "default" : "pointer")};
 `;
 
 const ButtonGrid = styled.div`
@@ -43,7 +44,6 @@ const NavigationHeader: React.FC = () => {
   const { isAuthenticated, username, logout, showModal } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const handleNavigation = (route: string) => {
     if (location.pathname !== route) {
@@ -52,9 +52,9 @@ const NavigationHeader: React.FC = () => {
   };
 
   const handleShowProfile = () => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set("userProfile", username || "current");
-    setSearchParams(newSearchParams);
+    if (username) {
+      navigate(`/profile/${username}`);
+    }
   };
 
   const handleSignInClick = () => {
@@ -63,7 +63,7 @@ const NavigationHeader: React.FC = () => {
 
   return (
     <NavigationContainer>
-      <HUDPanel position="relative" title="🧭 Navigation" style={{ width: "250px" }}>
+      <HUDPanel position="relative" title="Navigation" style={{ width: "250px" }}>
         {/* Navigation Links */}
         <HUDSection>
           <ButtonGrid>
@@ -71,36 +71,40 @@ const NavigationHeader: React.FC = () => {
               variant={location.pathname === "/" ? "success" : "gray"}
               size="small"
               onClick={() => handleNavigation("/")}
-              isActive={location.pathname === "/"}
+              $isActive={location.pathname === "/"}
+              leftElement={<LuPalette />}
             >
-              🎨 Canvas
+              Canvas
             </NavButton>
 
             <NavButton
               variant={location.pathname === "/badges" ? "success" : "gray"}
               size="small"
               onClick={() => handleNavigation("/badges")}
-              isActive={location.pathname === "/badges"}
+              $isActive={location.pathname === "/badges"}
+              leftElement={<LuTrophy />}
             >
-              🏆 Badges
+              Badges
             </NavButton>
 
             <NavButton
               variant={location.pathname === "/analytics" ? "success" : "gray"}
               size="small"
               onClick={() => handleNavigation("/analytics")}
-              isActive={location.pathname === "/analytics"}
+              $isActive={location.pathname === "/analytics"}
+              leftElement={<LuTrendingUp />}
             >
-              📊 Analytics
+              Analytics
             </NavButton>
 
             <NavButton
               variant={location.pathname === "/replay" ? "success" : "gray"}
               size="small"
               onClick={() => handleNavigation("/replay")}
-              isActive={location.pathname === "/replay"}
+              $isActive={location.pathname === "/replay"}
+              leftElement={<LuVideo />}
             >
-              🎬 Replay
+              Replay
             </NavButton>
           </ButtonGrid>
         </HUDSection>
@@ -111,17 +115,29 @@ const NavigationHeader: React.FC = () => {
             <HUDGroup>
               <UserInfo>Logged in as {username}</UserInfo>
               <ButtonRow>
-                <Button variant="gray" size="small" onClick={handleShowProfile} style={{ flex: 1 }}>
-                  👤 Profile
+                <Button
+                  variant={location.pathname === `/profile/${username}` ? "success" : "gray"}
+                  size="small"
+                  onClick={handleShowProfile}
+                  style={{ flex: 1 }}
+                  leftElement={<LuUser />}
+                >
+                  Profile
                 </Button>
-                <Button variant="danger" size="small" onClick={logout} style={{ flex: 1 }}>
-                  🚪 Logout
+                <Button variant="danger" size="small" onClick={logout} style={{ flex: 1 }} leftElement={<LuLogOut />}>
+                  Logout
                 </Button>
               </ButtonRow>
             </HUDGroup>
           ) : (
-            <Button variant="gray" size="small" onClick={handleSignInClick} style={{ width: "100%" }}>
-              🔑 Sign In
+            <Button
+              variant="gray"
+              size="small"
+              onClick={handleSignInClick}
+              style={{ width: "100%" }}
+              leftElement={<LuKey />}
+            >
+              Sign In
             </Button>
           )}
         </HUDSection>

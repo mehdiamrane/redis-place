@@ -1,7 +1,8 @@
 import React from "react";
-import styled from 'styled-components';
-import { HUDPanel, HUDSection, HUDGroup, Button } from './ui';
-import { theme } from '../styles/theme';
+import styled from "styled-components";
+import { LuFlame, LuRefreshCw } from "react-icons/lu";
+import { HUDPanel, HUDSection, HUDGroup, Button } from "./ui";
+import { theme } from "../styles/theme";
 
 interface HeatmapControlsProps {
   showHeatmap: boolean;
@@ -16,7 +17,7 @@ const CheckboxLabel = styled.label`
   align-items: center;
   cursor: pointer;
   color: ${theme.colors.white};
-  
+
   input {
     margin-right: ${theme.spacing.sm};
   }
@@ -32,10 +33,22 @@ const LegendSection = styled.div`
   opacity: 0.8;
   border-top: 1px solid ${theme.colors.gray};
   padding-top: ${theme.spacing.sm};
-  
+
   > div {
     margin-bottom: ${theme.spacing.xs};
+    display: flex;
+    align-items: center;
+    gap: ${theme.spacing.xs};
   }
+`;
+
+const LegendColorCircle = styled.div<{ $color: string }>`
+  width: 12px;
+  height: 12px;
+  margin-right: ${theme.spacing.xs};
+  border-radius: 50%;
+  background-color: ${(props) => props.$color};
+  flex-shrink: 0;
 `;
 
 const HeatmapControls: React.FC<HeatmapControlsProps> = ({
@@ -53,28 +66,23 @@ const HeatmapControls: React.FC<HeatmapControlsProps> = ({
   ];
 
   return (
-    <HUDPanel
-      position="relative"
-      title="🔥 Activity Heatmap"
-    >
+    <HUDPanel position="relative" title="Activity Heatmap" titleIcon={<LuFlame />}>
       <HUDSection>
         <CheckboxLabel>
-          <input
-            type="checkbox"
-            checked={showHeatmap}
-            onChange={(e) => onToggleHeatmap(e.target.checked)}
-          />
+          <input type="checkbox" checked={showHeatmap} onChange={(e) => onToggleHeatmap(e.target.checked)} />
           Show Heatmap
         </CheckboxLabel>
       </HUDSection>
 
       <HUDGroup>
-        <label style={{ 
-          fontSize: theme.fontSize.base, 
-          fontWeight: 500, 
-          color: showHeatmap ? theme.colors.white : theme.colors.gray,
-          opacity: showHeatmap ? 1 : 0.6
-        }}>
+        <label
+          style={{
+            fontSize: theme.fontSize.base,
+            fontWeight: 500,
+            color: showHeatmap ? theme.colors.white : theme.colors.gray,
+            opacity: showHeatmap ? 1 : 0.6,
+          }}
+        >
           Time Range:
         </label>
         <TimeRangeGrid>
@@ -98,18 +106,31 @@ const HeatmapControls: React.FC<HeatmapControlsProps> = ({
           size="small"
           onClick={onRefreshData}
           disabled={!showHeatmap}
-          style={{ width: '100%' }}
+          style={{ width: "100%" }}
         >
-          🔄 Refresh (Skip Cache)
+          <LuRefreshCw style={{ marginRight: "6px" }} />
+          Refresh (Skip Cache)
         </Button>
       </HUDGroup>
 
       <HUDSection>
         <LegendSection style={{ opacity: showHeatmap ? 0.8 : 0.4 }}>
-          <div>🔵 Cold zones (low activity)</div>
-          <div>🟢 Moderate activity</div>
-          <div>🟡 High activity</div>
-          <div>🔴 Hot zones (very active)</div>
+          <div>
+            <LegendColorCircle $color="#ff0000" />
+            Hot zones (very active)
+          </div>
+          <div>
+            <LegendColorCircle $color="#ff8800" />
+            High activity
+          </div>
+          <div>
+            <LegendColorCircle $color="#ffff00" />
+            Moderate activity
+          </div>
+          <div>
+            <LegendColorCircle $color="#4444ff" />
+            Low activity
+          </div>
         </LegendSection>
       </HUDSection>
     </HUDPanel>

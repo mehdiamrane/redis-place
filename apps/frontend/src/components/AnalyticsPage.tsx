@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
+import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
+import { LuTrendingUp, LuTrophy, LuPalette, LuZap } from "react-icons/lu";
 import { colorIndexToHex } from "@redis-place/shared";
-import UserProfile from "./UserProfile";
-import NavigationHeader from "./NavigationHeader";
-import AuthService from "../services/authService";
 import { getBadgeTitle, getBadgeEmoji, getBadgeColor } from "../utils/badge";
+import { formatUserId, formatTimestamp } from "../utils/pageUtils";
+import { StatsGrid, PageLoader, ErrorPage } from "./layout";
+import NavigationHeader from "./NavigationHeader";
+import { theme } from "../styles/theme";
 
 interface LeaderboardEntry {
   userId: string;
@@ -34,11 +38,96 @@ interface DashboardStats {
   totalPixelsPlaced: number;
 }
 
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background-color: #1a1a1a;
+  padding: 80px 20px 40px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+`;
+
+const ContentContainer = styled.div`
+  background-color: #2a2a2a;
+  padding: 30px;
+  border-radius: 12px;
+  width: 520px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const Title = styled.h1`
+  margin: 0 0 ${theme.spacing.sm} 0;
+  color: white;
+  font-size: 2rem;
+`;
+
+const Subtitle = styled.div`
+  font-size: ${theme.fontSize.sm};
+  color: #888;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const Section = styled.div`
+  margin-top: ${theme.spacing.lg};
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0 0 ${theme.spacing.sm} 0;
+  color: white;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.xs};
+`;
+
+const SectionSubtitle = styled.div`
+  font-size: ${theme.fontSize.sm};
+  color: #888;
+  margin-bottom: ${theme.spacing.md};
+`;
+
+const ListItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  margin-bottom: 5px;
+  background-color: #3a3a3a;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+`;
+
+const LeaderboardItem = styled(ListItem)<{ $rank: number }>`
+  background-color: ${(props) =>
+    props.$rank === 0 ? "#FFD700" : props.$rank === 1 ? "#C0C0C0" : props.$rank === 2 ? "#CD7F32" : "#3a3a3a"};
+  color: ${(props) => (props.$rank < 3 ? "#000" : "#fff")};
+`;
+
 function AnalyticsPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  // Override body overflow for this page
+  useEffect(() => {
+    document.body.style.overflow = "auto";
+    return () => {
+      document.body.style.overflow = "hidden";
+    };
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -57,177 +146,94 @@ function AnalyticsPage() {
     };
 
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Update every 10 seconds
+    const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const formatUserId = (userId: string) => {
-    // Extract the random part from user_timestamp_randompart
-    const parts = userId.split("_");
-    return parts.length > 2 ? `User ${parts[2].substring(0, 6)}...` : userId;
-  };
-
   const handleUserClick = (userId: string) => {
-    setSelectedUserId(userId);
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString();
+    const cleanUserId = userId.startsWith("user:") ? userId.substring(5) : userId;
+    navigate(`/profile/${cleanUserId}`);
   };
 
   if (loading) {
     return (
-      <div style={{ padding: "20px", color: "white" }}>
-        <h1>Loading Analytics...</h1>
-      </div>
+      <>
+        <NavigationHeader />
+        <PageLoader message="Loading Analytics..." />
+      </>
     );
   }
 
   if (error) {
-    return (
-      <div style={{ padding: "20px", color: "white" }}>
-        <h1>Error: {error}</h1>
-      </div>
-    );
+    return <ErrorPage error={error} />;
   }
 
   if (!stats) {
     return (
-      <div style={{ padding: "20px", color: "white" }}>
-        <h1>No data available</h1>
-      </div>
+      <>
+        <NavigationHeader />
+        <PageLoader message="No data available" />
+      </>
     );
   }
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        color: "white",
-        backgroundColor: "#1a1a1a",
-        minHeight: "100vh",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
+    <>
       <NavigationHeader />
+      <PageContainer>
+        <ContentContainer>
+          <Header>
+            <Title>
+              <LuTrendingUp style={{ fontSize: "1.5rem", marginRight: "0.5rem", verticalAlign: "middle" }} />
+              Analytics
+            </Title>
+            <Subtitle>Real-time analytics powered by Redis • Updated every 10 seconds</Subtitle>
+          </Header>
 
-      <div style={{ marginBottom: "20px", marginTop: "80px" }}>
-        <h1>📊 Redis Place Analytics</h1>
-        <div style={{ fontSize: "14px", color: "#888", marginBottom: "15px" }}>
-          Real-time analytics powered by Redis • Updated every 10 seconds
-          <br />
-          Current time: {new Date().toLocaleString()}
-        </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={() => {
-              const username = AuthService.getUsername();
-              if (username) {
-                handleUserClick(`user:${username}`);
-              }
-            }}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#2196F3",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            📊 My Stats
-          </button>
-        </div>
-      </div>
+          <StatsGrid
+            stats={[
+              {
+                value: stats.totalPixelsPlaced,
+                label: "Total Pixels Placed (All Time)",
+              },
+              {
+                value: stats.dailyVisitors,
+                label: "Unique Visitors Today",
+                description: "Resets daily at midnight",
+              },
+              {
+                value: stats.topUsers.length,
+                label: "Users Who Placed Pixels",
+                description: "All time contributors",
+              },
+            ]}
+            columns={3}
+          />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
-        {/* Summary Stats */}
-        <div style={{ backgroundColor: "#2a2a2a", padding: "20px", borderRadius: "10px" }}>
-          <h2>📈 Live Statistics</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", fontSize: "14px" }}>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>
-                {stats.totalPixelsPlaced.toLocaleString()}
-              </div>
-              <div style={{ color: "#888" }}>Total Pixels Placed (All Time)</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{stats.dailyVisitors}</div>
-              <div style={{ color: "#888" }}>Unique Visitors Today</div>
-              <div style={{ color: "#666", fontSize: "12px" }}>Resets daily at midnight</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{stats.topUsers.length}</div>
-              <div style={{ color: "#888" }}>Users Who Placed Pixels</div>
-              <div style={{ color: "#666", fontSize: "12px" }}>All time contributors</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Leaderboard */}
-        <div style={{ backgroundColor: "#2a2a2a", padding: "20px", borderRadius: "10px" }}>
-          <h2>🏆 Top Contributors (All Time)</h2>
-          <div style={{ fontSize: "12px", color: "#888", marginBottom: "15px" }}>
-            Ranked by total pixels placed since server started
-          </div>
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
-            {stats.topUsers.map((user, index) => (
-              <div
-                key={user.userId}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "8px",
-                  marginBottom: "5px",
-                  backgroundColor:
-                    index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : "#3a3a3a",
-                  color: index < 3 ? "#000" : "#fff",
-                  borderRadius: "5px",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-                onClick={() => handleUserClick(user.userId)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.02)";
-                  e.currentTarget.style.opacity = "0.9";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.opacity = "1";
-                }}
-              >
+          <Section>
+            <SectionTitle>
+              <LuTrophy /> Top Contributors (All Time)
+            </SectionTitle>
+            <SectionSubtitle>Ranked by total pixels placed since server started</SectionSubtitle>
+            {stats.topUsers.slice(0, 10).map((user, index) => (
+              <LeaderboardItem key={user.userId} $rank={index} onClick={() => handleUserClick(user.userId)}>
                 <span>
-                  #{index + 1} {formatUserId(user.userId)}
+                  #{index + 1} {formatUserId(user.userId.startsWith("user:") ? user.userId.substring(5) : user.userId)}
                 </span>
                 <strong>{user.score} pixels</strong>
-              </div>
+              </LeaderboardItem>
             ))}
-          </div>
-        </div>
+          </Section>
 
-        {/* Color Usage */}
-        <div style={{ backgroundColor: "#2a2a2a", padding: "20px", borderRadius: "10px" }}>
-          <h2>🎨 Most Popular Colors</h2>
-          <div style={{ fontSize: "12px", color: "#888", marginBottom: "15px" }}>
-            Total usage count since server started • Top 10 colors
-          </div>
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+          <Section>
+            <SectionTitle>
+              <LuPalette /> Most Popular Colors
+            </SectionTitle>
+            <SectionSubtitle>Total usage count since server started • Top 10 colors</SectionSubtitle>
             {stats.colorStats.slice(0, 10).map((colorStat, index) => {
               const colorHex = colorIndexToHex(colorStat.color);
               return (
-                <div
-                  key={colorStat.color}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px",
-                    marginBottom: "5px",
-                    backgroundColor: "#3a3a3a",
-                    borderRadius: "5px",
-                  }}
-                >
+                <ListItem key={colorStat.color}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div
                       style={{
@@ -241,36 +247,20 @@ function AnalyticsPage() {
                     <span>#{index + 1}</span>
                   </div>
                   <strong>{colorStat.count} uses</strong>
-                </div>
+                </ListItem>
               );
             })}
-          </div>
-        </div>
+          </Section>
 
-        {/* Recent Activity */}
-        <div style={{ backgroundColor: "#2a2a2a", padding: "20px", borderRadius: "10px" }}>
-          <h2>⚡ Recent Activity</h2>
-          <div style={{ fontSize: "12px", color: "#888", marginBottom: "15px" }}>
-            Last 20 activities (pixels & badges) • Live updates every 10 seconds
-          </div>
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+          <Section>
+            <SectionTitle>
+              <LuZap /> Recent Activity
+            </SectionTitle>
+            <SectionSubtitle>Last 20 activities (pixels & badges) • Live updates every 10 seconds</SectionSubtitle>
             {stats.recentActivity.map((activity) => {
               if (activity.type === "badge") {
-                // Render badge activity
                 return (
-                  <div
-                    key={activity.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px",
-                      marginBottom: "5px",
-                      backgroundColor: "#3a3a3a",
-                      borderRadius: "5px",
-                      fontSize: "14px",
-                    }}
-                  >
+                  <ListItem key={activity.id}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <div
                         style={{
@@ -290,34 +280,23 @@ function AnalyticsPage() {
                         style={{
                           cursor: "pointer",
                           textDecoration: "underline",
-                          color: "#4CAF50",
+                          color: "white",
                         }}
                         onClick={() => handleUserClick(activity.userId)}
                       >
-                        {formatUserId(activity.userId)}
+                        {formatUserId(
+                          activity.userId.startsWith("user:") ? activity.userId.substring(5) : activity.userId
+                        )}
                       </span>
                       <span style={{ color: "#888" }}>earned {getBadgeTitle(activity.badgeId!)}</span>
                     </div>
                     <span style={{ color: "#bbb", fontSize: "12px" }}>{formatTimestamp(activity.timestamp)}</span>
-                  </div>
+                  </ListItem>
                 );
               } else {
-                // Render pixel activity
                 const colorHex = colorIndexToHex(activity.color!);
                 return (
-                  <div
-                    key={activity.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px",
-                      marginBottom: "5px",
-                      backgroundColor: "#3a3a3a",
-                      borderRadius: "5px",
-                      fontSize: "14px",
-                    }}
-                  >
+                  <ListItem key={activity.id}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <div
                         style={{
@@ -332,28 +311,27 @@ function AnalyticsPage() {
                         style={{
                           cursor: "pointer",
                           textDecoration: "underline",
-                          color: "#4CAF50",
+                          color: "white",
                         }}
                         onClick={() => handleUserClick(activity.userId)}
                       >
-                        {formatUserId(activity.userId)}
+                        {formatUserId(
+                          activity.userId.startsWith("user:") ? activity.userId.substring(5) : activity.userId
+                        )}
                       </span>
                       <span style={{ color: "#888" }}>
                         ({activity.x}, {activity.y})
                       </span>
                     </div>
                     <span style={{ color: "#bbb", fontSize: "12px" }}>{formatTimestamp(activity.timestamp)}</span>
-                  </div>
+                  </ListItem>
                 );
               }
             })}
-          </div>
-        </div>
-      </div>
-
-      {/* User Profile Modal */}
-      {selectedUserId && <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} />}
-    </div>
+          </Section>
+        </ContentContainer>
+      </PageContainer>
+    </>
   );
 }
 

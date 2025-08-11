@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { LuPin } from "react-icons/lu";
 import { colorIdToHex, isEmptyPixel } from "@redis-place/shared";
 import { HUDPanel, HUDRow, HUDLabel, HUDValue, HUDSection, HUDGroup } from "./ui";
 import { theme } from "../styles/theme";
@@ -109,17 +110,12 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
   };
 
   return (
-    <HUDPanel
-      position="relative"
-      title="📍 Pixel Info"
-    >
+    <HUDPanel position="relative" title="Pixel Info" titleIcon={<LuPin />}>
       {/* Position Row - Always present */}
       <HUDGroup>
         <HUDRow>
           <HUDLabel>Position:</HUDLabel>
-          <HUDValue>
-            {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : "Select a pixel"}
-          </HUDValue>
+          <HUDValue>{selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : "Select a pixel"}</HUDValue>
         </HUDRow>
       </HUDGroup>
 
@@ -132,20 +128,29 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
             borderRadius: theme.borderRadius.sm,
           }}
         >
-          <ColorSwatch 
+          <ColorSwatch
             color={
-              loading ? "transparent" :
-              error ? "transparent" :
-              infoData ? (colorIdToHex(infoData.currentColor) || "transparent") :
-              "transparent"
-            } 
+              loading
+                ? "transparent"
+                : error
+                ? "transparent"
+                : infoData
+                ? colorIdToHex(infoData.currentColor) || "transparent"
+                : "transparent"
+            }
           />
           <HUDValue>
-            {loading ? "🔍 Searching..." :
-             error ? "❌ Error loading" :
-             !selectedPixel ? "No pixel selected" :
-             infoData ? (isEmptyPixel(infoData.currentColor) ? "Empty" : `Color ${infoData.currentColor}`) :
-             "Loading..."}
+            {loading
+              ? "Searching..."
+              : error
+              ? "Error loading"
+              : !selectedPixel
+              ? "No pixel selected"
+              : infoData
+              ? isEmptyPixel(infoData.currentColor)
+                ? "Empty"
+                : `Color ${infoData.currentColor}`
+              : "Loading..."}
           </HUDValue>
         </HUDRow>
       </HUDGroup>
@@ -158,7 +163,7 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
             <PlacementInfo>
               <UserInfo>
                 <ColorSwatch color="transparent" />
-                <HUDValue>🔍 Searching...</HUDValue>
+                <HUDValue>Searching...</HUDValue>
               </UserInfo>
               <TimeInfo>Loading placement data...</TimeInfo>
               <TimeInfo>Please wait</TimeInfo>
@@ -167,10 +172,12 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
         ) : error ? (
           <>
             <HUDLabel>Last placed by:</HUDLabel>
-            <PlacementInfo style={{ backgroundColor: "rgba(220, 53, 69, 0.15)", borderColor: "rgba(220, 53, 69, 0.3)" }}>
+            <PlacementInfo
+              style={{ backgroundColor: "rgba(220, 53, 69, 0.15)", borderColor: "rgba(220, 53, 69, 0.3)" }}
+            >
               <UserInfo>
                 <ColorSwatch color="transparent" />
-                <HUDValue>❌ Error loading</HUDValue>
+                <HUDValue>Error loading</HUDValue>
               </UserInfo>
               <TimeInfo>{error}</TimeInfo>
               <TimeInfo>Try selecting another pixel</TimeInfo>
@@ -179,7 +186,9 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
         ) : !selectedPixel ? (
           <>
             <HUDLabel>Last placed by:</HUDLabel>
-            <PlacementInfo style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}>
+            <PlacementInfo
+              style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}
+            >
               <UserInfo>
                 <ColorSwatch color="transparent" />
                 <HUDValue>No pixel selected</HUDValue>
@@ -192,7 +201,9 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
           isEmptyPixel(infoData.currentColor) ? (
             <>
               <HUDLabel>Last placed by:</HUDLabel>
-              <PlacementInfo style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}>
+              <PlacementInfo
+                style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}
+              >
                 <UserInfo>
                   <ColorSwatch color="transparent" />
                   <HUDValue>Nobody</HUDValue>
@@ -221,7 +232,9 @@ const PixelInfoHUD: React.FC<PixelInfoHUDProps> = ({ selectedPixel }) => {
           ) : (
             <>
               <HUDLabel>Last placed by:</HUDLabel>
-              <PlacementInfo style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}>
+              <PlacementInfo
+                style={{ backgroundColor: "rgba(153, 153, 153, 0.15)", borderColor: "rgba(153, 153, 153, 0.3)" }}
+              >
                 <UserInfo>
                   <ColorSwatch color="transparent" />
                   <HUDValue>Unknown</HUDValue>
