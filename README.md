@@ -40,6 +40,31 @@ npm run dev
 - Backend runs on `http://localhost:3001`
 - Frontend runs on `http://localhost:5173`
 
+### Docker Deployment
+
+You can also run the entire stack with Docker Compose:
+
+1. **Create a `.env` file** at the root of the project:
+
+```env
+REDIS_PASSWORD=your-redis-password
+CORS_ORIGIN=https://your-frontend-domain.com
+VITE_SERVER_URL=https://your-backend-domain.com
+PIXEL_COOLDOWN_MS=1000
+VITE_PIXEL_COOLDOWN_MS=1000
+```
+
+2. **Build and start**:
+
+```bash
+docker compose up -d --build
+```
+
+This starts three services:
+- **Redis** on port 6379 (internal)
+- **Backend** on port 3001
+- **Frontend** on port 80 (served via nginx)
+
 ## 🎨 Features
 
 ### Canvas & Interaction
