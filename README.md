@@ -1,8 +1,36 @@
 # Redis Place
 
-A collaborative pixel art canvas inspired by Reddit's r/place, built with React, Node.js, and Redis. Users can place colored pixels on a shared 1000x1000 canvas with real-time updates.
+> 🏆 **Winner of the Redis AI Challenge**
 
-It was quite a fun project to build for the August 2025 Redis Hackathon. Check out [the DEV post](https://dev.to/mehdi/redis-place-building-rplace-with-9-redis-data-structures-3lj8) for more details.
+A real-time collaborative pixel canvas inspired by Reddit's r/place, built with React, TypeScript, Node.js, Socket.IO and Redis.
+
+[Live demo](https://redisplace.mehdi.co) · [Technical write-up](https://dev.to/mehdi/redis-place-building-rplace-with-9-redis-data-structures-3lj8)
+
+![Redis Place canvas](./screenshots/canvas.png)
+
+## ✨ Highlights
+
+- Real-time collaborative 1000 × 1000 pixel canvas powered by WebSockets
+- Live analytics, leaderboards, activity heatmaps and event replay
+- Nine Redis data structures used for pixels, sessions, events and analytics
+- Heatmap queries reduced from 30 seconds to 180 ms, then 90 ms on cache hits
+- One million pixel states stored in approximately 625 KB using Redis bitfields
+
+## 🧰 Stack
+
+- **Frontend:** React, TypeScript, Vite, TanStack Query, Zustand, Styled Components
+- **Backend:** Node.js, Express, Socket.IO, Redis
+- **Architecture:** npm workspaces monorepo with a shared TypeScript package
+
+## 📸 Screenshots
+
+| Analytics | Activity heatmap |
+| --- | --- |
+| ![Analytics dashboard](./screenshots/analytics.png) | ![Activity heatmap](./screenshots/heatmap.png) |
+
+| Event replay | User profile |
+| --- | --- |
+| ![Event replay](./screenshots/replay.png) | ![User profile](./screenshots/user-profile.png) |
 
 ## 🚀 Quick Start
 
