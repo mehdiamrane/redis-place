@@ -1,6 +1,6 @@
 # Redis Place
 
-> 🏆 **[Winner of the Redis AI Challenge](https://dev.to/devteam/congrats-to-the-redis-ai-challenge-winners-2f2j)**
+> 🏆 **[Winner of the Redis AI Challenge](https://dev.to/devteam/congrats-to-the-redis-ai-challenge-winners-2f2j#congratulations-to)**
 
 A real-time collaborative pixel canvas inspired by Reddit's r/place, built with React, TypeScript, Node.js, Socket.IO and Redis.
 
